@@ -1,5 +1,7 @@
 package com.myname.cemount;
 
+import com.myname.cemount.commands.AddCommand;
+import com.myname.cemount.core.Commit;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,7 +26,7 @@ public class Cem {
                 runInit();
                 break;
             case "add":
-                new AddCommand(repo).run(Arrays.copyOfRange(args, 1, args.length));
+                AddCommand.execute(slice(args, 1));
                 break;
             default:
                 System.err.println("Unknown command: " + cmd);
@@ -36,6 +38,8 @@ public class Cem {
         System.out.println("Usage: cem <command>");
         System.out.println("Commands:");
         System.out.println("  init    Initialize a new CEMount repository");
+        System.out.println("  add     Add files to the CEMount index");
+        // more commands coming ;)
     }
 
     /**
@@ -63,5 +67,10 @@ public class Cem {
         } catch (IOException e) {
             System.err.println("Error initializing repository: " + e.getMessage());
         }
+    }
+    private static String[] slice(String[] arr, int start) {
+        String[] result = new String[arr.length - start];
+        System.arraycopy(arr, start, result, 0, result.length);
+        return result;
     }
 }

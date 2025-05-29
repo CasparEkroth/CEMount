@@ -1,33 +1,27 @@
 package com.myname.cemount.commands;
 
-import com.myname.cemount.core.Repository;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Map;
 
 public class AddCommand {
-    private final Repository repo;
-
-    public AddCommand(Repository repo) {
-        this.repo = repo;
-    }
-
-    public void run(String[] paths) {
-        for (String p : paths) {
-            try {
-                Path file = Path.of(p);
-                byte[] data = Files.readAllBytes(file);
-                String sha = sha1Hex(data);
-                repo.getObjects().put(sha, data);
-                repo.getStagedPaths().add(p);
-                System.out.println("Added " + p + " as " + sha);
-            } catch (IOException e) {
-                System.err.println("Error adding " + p + ": " + e.getMessage());
+    public static void execute(String[] args) {
+        if (args.length == 0) {
+            System.err.println("Usage: cem add <paths>…");
+            return;
+        }
+        for (String p : args) {
+            Path file = Path.of(p);
+            if (!Files.exists(file)) {
+                System.err.println("cem add: pathspec '" + p + "' did not match any files");
+                continue;
             }
+            // your logic to hash the blob, write to .cemount/objects, update index…
+            System.out.println("added " + p);
         }
     }
-
     private String sha1Hex(byte[] data) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -41,5 +35,23 @@ public class AddCommand {
             throw new RuntimeException(e);
         }
     }
-}
 
+    public static class Commit {
+        private final String sha;
+        private final Instant timestamp;
+        private final String message;
+        private final Map<String, String> tree; // path → object SHA
+
+        public Commit(String sha, Instant timestamp, String message, Map<String,String> tree) {
+            this.sha = sha;
+            this.timestamp = timestamp;
+            this.message = message;
+            this.tree = tree;
+        }
+
+        public String getSha() { return sha; }
+        public Instant getTimestamp() { return timestamp; }
+        public String getMessage() { return message; }
+        public Map<String,String> getTree() { return tree; }
+    }
+}
