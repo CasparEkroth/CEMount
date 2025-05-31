@@ -1,17 +1,18 @@
 package com.myname.cemount.commands;
 
+import java.io.File;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.security.MessageDigest;
+import java.util.*;
 import java.util.zip.Deflater;
 
 public class AddCommand {
-    private static final String CEM_DIR = ".cemount";
-    private static final String OBJECTS_SUBDIR = "objects";
+    private static final String CEM_DIR           = ".cemount";
+    private static final String OBJECTS_SUBDIR    = "objects";
+    private static final String INDEX_TXT         = "index.txt";
 
     public static void execute(String[] args) {
         if (args.length == 0) {
@@ -19,53 +20,72 @@ public class AddCommand {
             return;
         }
 
-        // Assume the user runs "cem add" from the repo root,
         Path repoRoot = Paths.get("").toAbsolutePath().normalize();
-        Path cemDir = repoRoot.resolve(CEM_DIR);
-        Path objectsDir = cemDir.resolve(OBJECTS_SUBDIR);
+        Path cemDir   = repoRoot.resolve(CEM_DIR);
+        Path objects  = cemDir.resolve(OBJECTS_SUBDIR);
+        Path indexTxt = cemDir.resolve(INDEX_TXT);
 
-        if (Files.notExists(cemDir) || Files.notExists(objectsDir)) {
-            System.err.println("cem add: error: no CEMount repository found. Have you run `cem init`?");
+        // Must have done `cem init` first (so .cemount/objects must exist)
+        if (Files.notExists(cemDir) || Files.notExists(objects)) {
+            System.err.println("cem add: no repository found. Run `cem init` first.");
             return;
         }
 
         for (String p : args) {
             Path fileOnDisk = Paths.get(p);
-            if (!Files.exists(fileOnDisk) || !Files.isRegularFile(fileOnDisk)) {
-                System.err.println("cem add: pathspec '" + p + "' did not match any files");
+            if (Files.notExists(fileOnDisk) || !Files.isRegularFile(fileOnDisk)) {
+                System.err.printf("cem add: pathspec '%s' did not match any files%n", p);
                 continue;
             }
-            try{
+
+            try {
                 byte[] content = Files.readAllBytes(fileOnDisk);
-                String header = "blob" + content.length + "\0";
-                byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
+                String header  = "blob " + content.length + "\0";
+                byte[] hdrBs   = header.getBytes(StandardCharsets.UTF_8);
+                byte[] store   = new byte[hdrBs.length + content.length];
+                System.arraycopy(hdrBs, 0, store, 0, hdrBs.length);
+                System.arraycopy(content, 0, store, hdrBs.length, content.length);
 
-                byte[] storeBytes = new byte[headerBytes.length + content.length];
-                System.arraycopy(headerBytes,0,storeBytes,0,headerBytes.length);
-                System.arraycopy(content,0,storeBytes,headerBytes.length,content.length);
-
-                String shaHex = sha1Hex(storeBytes);
-
-                //Map SHA‐1 to object‐path: .cemount/objects/xx/yyyy
-                String dirName  = shaHex.substring(0, 2);
-                String fileName = shaHex.substring(2);
-                Path objectDir  = objectsDir.resolve(dirName);
+                String blobSha = sha1Hex(store);
+                String dirName = blobSha.substring(0, 2);
+                String fileName= blobSha.substring(2);
+                Path objectDir  = objects.resolve(dirName);
                 Path objectFile = objectDir.resolve(fileName);
 
-                if (Files.exists(objectFile)) {
-                    // Blob is already in the object store; no need to rewrite
-                    System.out.printf("added %s (blob already exists)%n", p);
-                    continue;
+                if (Files.notExists(objectFile)) {
+                    Files.createDirectories(objectDir);
+                    byte[] compressed = zlibCompress(store);
+                    Files.write(objectFile, compressed);
                 }
-                Files.createDirectories(objectDir);
-                byte[] compressed = zlibCompress(storeBytes);
-                Files.write(objectFile, compressed);
+                System.out.printf("added %s%n", p);
 
-                System.out.println("added " + p);
-            }catch (IOException e) {
+                Path relPath = repoRoot.relativize(fileOnDisk.toAbsolutePath().normalize());
+                String rel    = relPath.toString().replace(File.separatorChar, '/');
+
+                List<String> lines = new ArrayList<>();
+                if (Files.exists(indexTxt)) {
+                    lines = Files.readAllLines(indexTxt, StandardCharsets.UTF_8);
+                }
+
+                List<String> keep = new ArrayList<>();
+                for (String line : lines) {
+                    int sp = line.indexOf(' ');
+                    if (sp < 0) continue;
+                    String existingPath = line.substring(sp + 1);
+                    if (!existingPath.equals(rel)) {
+                        keep.add(line);
+                    }
+                }
+
+                // Add new entry
+                keep.add(blobSha + " " + rel);
+                Files.createDirectories(indexTxt.getParent());
+                Files.write(indexTxt, keep, StandardCharsets.UTF_8);
+
+            } catch (IOException e) {
                 System.err.printf("cem add: failed to add %s: %s%n", p, e.getMessage());
-            }catch (Exception e){
-                System.err.printf("cem add: unexpected error for %s: %s%n", p, e.getMessage());
+            } catch (Exception e) {
+                System.err.printf("cem add: error for %s: %s%n", p, e.getMessage());
             }
         }
     }
@@ -79,24 +99,23 @@ public class AddCommand {
             }
             return sb.toString();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to compute SHA-1: " + e.getMessage(), e);
+            throw new RuntimeException(e);
         }
     }
-    private static byte[] zlibCompress(byte[] input) throws IOException {
-        Deflater deflater = new Deflater();
-        deflater.setInput(input);
-        deflater.finish();
 
+    private static byte[] zlibCompress(byte[] input) throws IOException {
+        Deflater def = new Deflater();
+        def.setInput(input);
+        def.finish();
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[8_192];
-            while (!deflater.finished()) {
-                int count = deflater.deflate(buffer);
-                baos.write(buffer, 0, count);
+            byte[] buf = new byte[8192];
+            while (!def.finished()) {
+                int count = def.deflate(buf);
+                baos.write(buf, 0, count);
             }
             return baos.toByteArray();
         } finally {
-            deflater.end();
+            def.end();
         }
     }
-
 }
