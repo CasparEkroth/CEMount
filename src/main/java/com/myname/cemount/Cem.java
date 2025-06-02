@@ -2,6 +2,7 @@ package com.myname.cemount;
 
 import com.myname.cemount.commands.AddCommand;
 import com.myname.cemount.core.CommitCommand;
+import com.myname.cemount.commands.LogCommand;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +31,9 @@ public class Cem {
                 break;
             case "commit":
                 CommitCommand.execute(slice(args, 1));
+                break;
+            case "log":
+                LogCommand.execute(slice(args, 1));
                 break;
             default:
                 System.err.println("Unknown command: " + cmd);

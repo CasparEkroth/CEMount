@@ -17,23 +17,7 @@ public class CommitCommand {
     private static final String HEAD_FILE      = "HEAD";
     private static final String INDEX_TXT      = "index.txt";
 
-    /**
-     * Run `cem commit -m "message"`.
-     * This method:
-     *   1) Reads .cemount/index.txt (each line: "<blobSha> <path>").
-     *   2) Builds one commit‐blob whose content is:
-     *        timestamp: <epochSeconds>
-     *        message:   <commitMessage>
-     *
-     *        <blobSha1> <path1>
-     *        <blobSha2> <path2>
-     *        ...
-     *
-     *   3) Prefixes that with "commit <length>\\0", hashes it, zlib‐compresses it,
-     *      and writes it under .cemount/objects/<first2>/<remaining38>.
-     *   4) Updates HEAD (refs/heads/master) to point to the new commit SHA.
-     *   5) Clears out index.txt.
-     */
+
     public static void execute(String[] args) {
         // Require exactly: cem commit -m "some message"
         if (args.length < 2 || !args[0].equals("-m")) {
