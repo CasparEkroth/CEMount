@@ -46,6 +46,9 @@ public class Cem {
         System.out.println("Commands:");
         System.out.println("  init    Initialize a new CEMount repository");
         System.out.println("  add     Add files to the CEMount index");
+        System.out.println("  commit  Commits the current index");
+        System.out.println("  log     Shows current commit");
+        System.out.println("  remote  coming--");
         // more commands coming ;)
     }
 
@@ -69,6 +72,11 @@ public class Cem {
             // Write initial HEAD pointing to master
             Path headFile = cemDir.resolve("HEAD");
             Files.writeString(headFile, "ref: refs/heads/master\n");
+
+            Path configFile = cemDir.resolve("config");
+            if (!Files.exists(configFile)) {
+                Files.createFile(configFile);
+            }
 
             System.out.println("Initialized empty CEMount repository in " + cemDir);
         } catch (IOException e) {

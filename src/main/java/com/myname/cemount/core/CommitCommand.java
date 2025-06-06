@@ -17,7 +17,6 @@ public class CommitCommand {
     private static final String HEAD_FILE      = "HEAD";
     private static final String INDEX_TXT      = "index.txt";
 
-
     public static void execute(String[] args) {
         // Require exactly: cem commit -m "some message"
         if (args.length < 2 || !args[0].equals("-m")) {
