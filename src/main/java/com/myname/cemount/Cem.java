@@ -48,11 +48,11 @@ public class Cem {
     private static void printUsage() {
         System.out.println("Usage: cem <command>");
         System.out.println("Commands:");
-        System.out.println("  init    Initialize a new CEMount repository");
-        System.out.println("  add     Add files to the CEMount index");
-        System.out.println("  commit  Commits the current index");
-        System.out.println("  log     Shows current commit");
-        System.out.println("  remote  coming--");
+        System.out.println("  init     Initialize a new CEMount repository");
+        System.out.println("  add      Add files to the CEMount index");
+        System.out.println("  commit   Commit the current index");
+        System.out.println("  log      Show commit history");
+        System.out.println("  remote   Manage remote repositories (add, remove, list)");
         // more commands coming ;)
     }
 
