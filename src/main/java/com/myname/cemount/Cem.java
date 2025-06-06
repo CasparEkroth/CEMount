@@ -3,6 +3,7 @@ package com.myname.cemount;
 import com.myname.cemount.commands.AddCommand;
 import com.myname.cemount.core.CommitCommand;
 import com.myname.cemount.commands.LogCommand;
+import com.myname.cemount.commands.RemoteCommand;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,9 @@ public class Cem {
                 break;
             case "log":
                 LogCommand.execute(slice(args, 1));
+                break;
+            case "remote":
+                RemoteCommand.execute(slice(args, 1));
                 break;
             default:
                 System.err.println("Unknown command: " + cmd);

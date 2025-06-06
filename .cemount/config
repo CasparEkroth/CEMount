@@ -1,0 +1,4 @@
+
+[remote "bigThing"]
+    url = http://IDK.com
+    fetch = +refs/heads/*:refs/remotes/bigThing/*
