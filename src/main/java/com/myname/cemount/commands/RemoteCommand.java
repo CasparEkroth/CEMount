@@ -30,7 +30,7 @@ public class RemoteCommand {
         switch (args[0]){
             case "add":
                 if(args.length != 3){
-                    System.err.println("usage: cem remote add <name> <url>");
+                    System.err.println("usage: cem remote add <name> <url|tcp://host:port>");
                     return;
                 }
                 String name = args[1];

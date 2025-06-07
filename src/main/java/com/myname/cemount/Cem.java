@@ -52,7 +52,8 @@ public class Cem {
         System.out.println("  add      Add files to the CEMount index");
         System.out.println("  commit   Commit the current index");
         System.out.println("  log      Show commit history");
-        System.out.println("  remote   Manage remote repositories (add, remove, list)");
+        System.out.println("  remote   Manage remote repositories (e.g. local paths or tcp://host:port)");
+
         // more commands coming ;)
     }
 
