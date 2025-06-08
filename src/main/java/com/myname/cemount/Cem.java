@@ -4,6 +4,7 @@ import com.myname.cemount.commands.AddCommand;
 import com.myname.cemount.core.CommitCommand;
 import com.myname.cemount.commands.LogCommand;
 import com.myname.cemount.commands.RemoteCommand;
+import com.myname.cemount.commands.ServerCommand;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +40,12 @@ public class Cem {
             case "remote":
                 RemoteCommand.execute(slice(args, 1));
                 break;
+            case "server":
+                //ServerCommand.execute(slice(args,1));
+                break;
+            case "-h":
+                printHelpMsg();
+                break;
             default:
                 System.err.println("Unknown command: " + cmd);
                 printUsage();
@@ -53,10 +60,13 @@ public class Cem {
         System.out.println("  commit   Commit the current index");
         System.out.println("  log      Show commit history");
         System.out.println("  remote   Manage remote repositories (e.g. local paths or tcp://host:port)");
-
+        System.out.println("  server   Stars a CEMount data base");
         // more commands coming ;)
     }
 
+    private static void printHelpMsg(){
+        // need to add a user m
+    }
     /**
      * Create the .cemount directory structure and initial HEAD file.
      */
