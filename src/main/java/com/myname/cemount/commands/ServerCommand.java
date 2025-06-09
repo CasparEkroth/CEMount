@@ -1,6 +1,9 @@
 package com.myname.cemount.commands;
 
 
+import com.myname.cemount.server.ClientHandler;
+import com.myname.cemount.server.RepositoryManager;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -26,6 +29,7 @@ public class ServerCommand {
     private static final String CEM_DB_DIR = "CEMountDB";
     private static final int MAX_THREADS = 10;
     private static ServerSocket serverSocket;
+    private static RepositoryManager repoMgr;
 
     public static void execute(String[] args){
         if(args.length != 2){
@@ -41,7 +45,8 @@ public class ServerCommand {
         }
         Path dbDir;
         try{
-            dbDir = createDataBaseDir(args[1]);
+            Path configPath = Paths.get(args[1]).toAbsolutePath().normalize();
+            repoMgr = new RepositoryManager(configPath);
         }catch (IOException e){
             System.err.println("fatal: could not create CEM database dir: " + e.getMessage());
             return;
@@ -67,10 +72,12 @@ public class ServerCommand {
             while (isRunning){
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected: " + clientSocket.getInetAddress());
-                pool.submit(new ClientHandler(clientSocket, dbDir));
+                pool.submit(new ClientHandler(clientSocket, repoMgr));
             }
         } catch (IOException e) {
-            System.err.println("fatal: server error: " + e.getMessage());
+            if(isRunning){
+                System.err.println("fatal: server error: " + e.getMessage());
+            }
         } finally{
             pool.shutdown();
             System.out.println("CEM server shutting down.");
@@ -93,15 +100,4 @@ public class ServerCommand {
         }
     }
 
-    private static class ClientHandler implements Runnable {
-        //need to handel push && fetch
-        //also need to create command for fetch and push
-        public ClientHandler(Socket clientSocket, Path dbDir) {
-        }
-
-        @Override
-        public void run() {
-
-        }
-    }
 }

@@ -41,7 +41,7 @@ public class Cem {
                 RemoteCommand.execute(slice(args, 1));
                 break;
             case "server":
-                //ServerCommand.execute(slice(args,1));
+                ServerCommand.execute(slice(args,1));
                 break;
             case "-h":
                 printHelpMsg();
@@ -66,6 +66,7 @@ public class Cem {
 
     private static void printHelpMsg(){
         // need to add a user m
+        System.out.println("help!!!");
     }
     /**
      * Create the .cemount directory structure and initial HEAD file.
