@@ -7,6 +7,7 @@ import com.myname.cemount.server.RepositoryManager;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -20,7 +21,7 @@ import java.util.concurrent.Executors;
  * Usage: cem serve <port> <path-to-bare-repo>
  * Example:
  *   On server (old laptop):
- *     $ cem serve 7842 /home/alice/repos/project.git
+ *     $ cem serve 7842 /home/alice/repos/
  *   Then the client’s PushCommand can connect to 192.168.1.50:7842 and send objects.
  */
 
@@ -45,8 +46,7 @@ public class ServerCommand {
         }
         Path dbDir;
         try{
-            Path configPath = Paths.get(args[1]).toAbsolutePath().normalize();
-            repoMgr = new RepositoryManager(configPath);
+            dbDir = createDataBaseDir(args[1]);
         }catch (IOException e){
             System.err.println("fatal: could not create CEM database dir: " + e.getMessage());
             return;
@@ -67,12 +67,12 @@ public class ServerCommand {
         }, "CEM-Shutdown-Watcher").start();
 
         try{
-            serverSocket = new ServerSocket(port);
+            serverSocket = new ServerSocket(port, 50, InetAddress.getByName("0.0.0.0"));
             System.out.println("CEM server listening on port " + port);
             while (isRunning){
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected: " + clientSocket.getInetAddress());
-                pool.submit(new ClientHandler(clientSocket, repoMgr));
+                pool.submit(new ClientHandler(clientSocket, dbDir));
             }
         } catch (IOException e) {
             if(isRunning){
