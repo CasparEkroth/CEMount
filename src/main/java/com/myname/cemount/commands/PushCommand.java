@@ -1,6 +1,7 @@
 package com.myname.cemount.commands;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +19,7 @@ public class PushCommand {
     private static final String OBJECTS    = "objects";
     private static final String HEAD_FILE  = "HEAD";
 
-    public static void execute(String[] args){
+    public static void execute(String[] args) throws IOException {
         if(args.length != 2){
             System.err.println("usage: cem push <remote> <branch>");
             return;
@@ -48,6 +49,69 @@ public class PushCommand {
             return;
         }
 
+        if(remoteUrl.startsWith("tcp://")){
+            pushOverTcp(remoteUrl, branch, localSha, commits, cemDir);
+        }else{
+            pushOverFileSystem(remoteUrl, branch, localSha, commits, cemDir);
+        }
+    }
+
+    private static void pushOverFileSystem(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir){
+
+    }
+
+    private static void pushOverTcp(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir){
+        String without = remoteUrl.substring("tcp://".length());
+        int idx = without.indexOf(':');
+        int slash = without.lastIndexOf('/');
+        // need to add this to the remoteCommand
+        String repoName  = without.substring(slash +1);
+        if(slash < idx){
+            slash = without.length();
+            repoName = "default";
+        }
+        String serverPort = without.substring(idx + 1, slash);
+        String serverIP = without.substring(0,idx);
+
+        try(Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
+            BufferedInputStream in = new BufferedInputStream(socket.getInputStream());
+            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())))
+        {
+            out.write("PUSH " + repoName + " " + branch + "\n");
+            out.flush();
+
+            out.write("COMMITS " + commits.size() + "\n");
+            for (String sha : commits){
+                out.write("COMMIT " + sha + "\n");
+            }
+            out.flush();
+
+            for (String sha : commits){
+                Path object = cemDir.resolve(OBJECTS)
+                        .resolve(sha.substring(0,2))
+                        .resolve(sha.substring(2));
+                byte[] compressed = Files.readAllBytes(object);
+                out.write("OBJECT" + sha + " " + compressed.length + "\n");
+                out.flush();
+                socket.getOutputStream().write(compressed);
+                socket.getOutputStream().flush();
+            }
+            out.write("UPDATE_REF " + branch + " " + localSha + "\n");
+            out.flush();
+
+            StringBuilder reply = new StringBuilder();
+            int c;
+            while ((c = in.read()) != -1 && c != '\n'){
+                reply.append((char) c);
+            }
+            if(!reply.toString().startsWith("OK")){
+                System.err.println("Push failed: " + reply);
+            }else{
+                System.out.println("Push successful.");
+            }
+        }catch(IOException e){
+            System.err.println("cem push: failed to push: " + e.getMessage());
+        }
     }
 
     private static List<String> findCommitsToPush(Path cemDir, String tipSha) {

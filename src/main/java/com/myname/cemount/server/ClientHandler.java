@@ -8,6 +8,7 @@ public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private final Path repoRoot;
+    private final String CEM_DIR = ".cemount"
     public ClientHandler(Socket socket, Path repoRoot) {
         this.socket = socket;
         this.repoRoot = repoRoot;
@@ -50,11 +51,7 @@ public class ClientHandler implements Runnable {
         }
     }
     private void handlePush(RepositoryManager repoMgr, Path bareRepo, String branch, BufferedReader in, BufferedWriter out) throws IOException {
-        // 1) Read COMMITS <N> + N lines of COMMIT <sha>
-        // 2) Read OBJECT <sha> <len>\n<bytes> blocks, write into bareRepo/.cemount/objects/…
-        // 3) Read UPDATE_REF <branch> <newSha>, update bareRepo/.cemount/refs/heads/<branch>
-        // 4) Optionally update bareRepo/.cemount/HEAD if branch=="master"
-        // 5) out.write("OK\n");
+        Path cemDir = bareRepo.resolve(CEM_DIR);
     }
 
     private void handleFetch(RepositoryManager repoMgr, Path bareRepo, String branch, String clientHave, BufferedReader in, BufferedWriter out) throws IOException {
