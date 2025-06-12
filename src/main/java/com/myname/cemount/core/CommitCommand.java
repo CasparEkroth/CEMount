@@ -32,6 +32,15 @@ public class CommitCommand {
         Path headFile  = cemDir.resolve(HEAD_FILE);
         Path indexTxt  = cemDir.resolve(INDEX_TXT);
 
+        if (Files.notExists(headFile)) {
+            try {
+                Files.writeString(headFile, "ref: refs/heads/main\n", StandardCharsets.US_ASCII);
+            } catch (IOException e) {
+                System.err.println("cem commit: failed to initialize HEAD: " + e.getMessage());
+                return;
+            }
+        }
+
         if (Files.notExists(cemDir) ||
                 Files.notExists(objects) ||
                 Files.notExists(refsHeads) ||

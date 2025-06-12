@@ -17,6 +17,7 @@ public class ClientHandler implements Runnable {
     private static final String REFS_DIR       = "refs";
     private static final String HEADS_DIR      = "heads";
     private static final String HEAD_FILE      = "HEAD";
+
     public ClientHandler(Socket socket, Path repoRoot) {
         this.socket = socket;
         this.repoRoot = repoRoot;
@@ -37,15 +38,17 @@ public class ClientHandler implements Runnable {
                 return;
             }
             String cem = parts[0];
-            Path bareRepo = repoRoot.resolve(parts[1]);
+            String repoName = parts[1];
+            String branch = parts[2];
+            Path bareRepo = repoRoot.resolve(repoName);
+            Path cemDir = bareRepo.resolve(CEM_DIR);
 
+            RepositoryManager.initIfMissing(cemDir,branch,repoName);
             RepositoryManager repoMgr = new RepositoryManager(bareRepo);
 
             if("PUSH".equals(cem)){
-                String branch = parts[2];
                 handlePush(repoMgr, bareRepo, branch, in, out);
             } else if ("FETCH".equals(cem)){
-                String branch = parts[2];
                 String clientHave = parts[3];
                 handleFetch(repoMgr, bareRepo, branch, clientHave, in, out);
             }else{

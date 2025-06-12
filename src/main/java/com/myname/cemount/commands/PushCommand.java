@@ -6,10 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PushCommand {
     private static final String CEM_DIR    = ".cemount";
@@ -43,7 +40,7 @@ public class PushCommand {
             System.err.printf("fatal: unknown local branch '%s'%n", branch);
             return;
         }
-        List<String> commits = findCommitsToPush(cemDir, localSha);
+        List<String> commits = findCommitsToPush(localSha, cemDir);
         if(commits.isEmpty()){
             System.out.println("Everything up-to-date.");
             return;
@@ -58,6 +55,7 @@ public class PushCommand {
 
     private static void pushOverFileSystem(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir){
 
+        /// ...
     }
 
     private static void pushOverTcp(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir){
@@ -114,10 +112,41 @@ public class PushCommand {
         }
     }
 
-    private static List<String> findCommitsToPush(Path cemDir, String tipSha) {
-        // Return list oldest->newest.
+    private static List<String> findCommitsToPush(String localSha, Path cemDir) throws IOException {
+        List<String> toPush = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
 
-        return Collections.emptyList();
+        Deque<String> stack = new ArrayDeque<>();
+        stack.push(localSha);
+
+        while (!stack.isEmpty()) {
+            String sha = stack.pop();
+            if (seen.contains(sha)) continue;
+            seen.add(sha);
+            toPush.add(sha);
+
+            // Read commit object
+            Path objectPath = cemDir.resolve("objects")
+                    .resolve(sha.substring(0, 2))
+                    .resolve(sha.substring(2));
+            if (!Files.exists(objectPath)) continue;
+
+            byte[] compressed = Files.readAllBytes(objectPath);
+            byte[] raw = zlibDecompress(compressed);
+            String content = new String(raw, StandardCharsets.UTF_8);
+
+            // Look for parent commit(s)
+            for (String line : content.split("\n")) {
+                if (line.startsWith("parent: ")) {
+                    String parentSha = line.substring(8).trim();
+                    stack.push(parentSha);
+                }
+            }
+        }
+
+        // Important: oldest commits should go first
+        Collections.reverse(toPush);
+        return toPush;
     }
 
     private static String resolveLocalRef(Path cemDir, String branch) {
@@ -130,24 +159,45 @@ public class PushCommand {
         }
     }
 
-    private static Map<String, String> parseRemotes(Path configPath){
+    private static Map<String, String> parseRemotes(Path configPath) {
         Map<String, String> map = new HashMap<>();
         String key = null;
         try {
             for (String raw : Files.readAllLines(configPath, StandardCharsets.UTF_8)) {
                 String line = raw.trim();
-
-                if(line.startsWith("[remote")){
-                    key = line.substring(
-                            line.indexOf('"') + 1,
-                            line.indexOf('"',line.indexOf('"')));
-                } else if (line.startsWith("url") && key != null){
-                    String url = line.substring(line.indexOf("=")).trim();
-                    map.put(key,url);
-                    key = null;
+                if (line.startsWith("[remote")) {
+                    int firstQuote = line.indexOf('"');
+                    int secondQuote = line.indexOf('"', firstQuote + 1);
+                    if (firstQuote != -1 && secondQuote != -1 && secondQuote > firstQuote) {
+                        key = line.substring(firstQuote + 1, secondQuote);
+                    }
+                } else if (line.startsWith("url") && key != null) {
+                    int equalsIndex = line.indexOf('=');
+                    if (equalsIndex != -1) {
+                        String url = line.substring(equalsIndex + 1).trim();
+                        map.put(key, url);
+                        key = null;
+                    }
                 }
             }
-        } catch (IOException e) {/* ... */}
+        } catch (IOException e) {
+            System.err.println("cem: failed to read remotes: " + e.getMessage());
+        }
+
         return map;
     }
+
+    private static byte[] zlibDecompress(byte[] compressed) throws IOException {
+        try (java.util.zip.InflaterInputStream inflater =
+                     new java.util.zip.InflaterInputStream(new java.io.ByteArrayInputStream(compressed));
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = inflater.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            return out.toByteArray();
+        }
+    }
+
 }

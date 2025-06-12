@@ -18,6 +18,9 @@ import java.util.Set;
  */
 public class RepositoryManager {
     private final Map<String, Path> repos = new HashMap<>();
+    private static final String OBJECTS_SUBDIR = "objects";
+    private static final String REFS_DIR       = "refs";
+    private static final String HEAD_FILE      = "HEAD";
 
     public RepositoryManager(Path configFile) throws IOException{
         try(BufferedReader r = Files.newBufferedReader(configFile, StandardCharsets.UTF_8)){
@@ -48,5 +51,15 @@ public class RepositoryManager {
     /** Return the set of all repo names. */
     public Set<String> listRepoNames() {
         return Collections.unmodifiableSet(repos.keySet());
+    }
+
+    public static void initIfMissing(Path cemDir, String defaultBranch, String repoName) throws IOException{
+        if(!Files.exists(cemDir)) return;
+        System.out.println("Creating repo '" + repoName + "' at " + cemDir);
+        Files.createDirectories(cemDir.resolve(OBJECTS_SUBDIR));
+        Files.createDirectories(cemDir.resolve(REFS_DIR));
+        Files.writeString(cemDir.resolve(HEAD_FILE),
+                "ref: refs/heads/" + defaultBranch + "\n",
+                StandardCharsets.US_ASCII);
     }
 }

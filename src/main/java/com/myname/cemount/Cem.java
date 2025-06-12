@@ -1,10 +1,8 @@
 package com.myname.cemount;
 
-import com.myname.cemount.commands.AddCommand;
+import com.myname.cemount.commands.*;
 import com.myname.cemount.core.CommitCommand;
-import com.myname.cemount.commands.LogCommand;
-import com.myname.cemount.commands.RemoteCommand;
-import com.myname.cemount.commands.ServerCommand;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,7 +15,7 @@ import java.nio.file.Paths;
 public class Cem {
     private static final String CEM_DIR = ".cemount";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         if (args.length == 0) {
             printUsage();
             return;
@@ -45,6 +43,9 @@ public class Cem {
                 break;
             case "-h":
                 printHelpMsg();
+                break;
+            case "push":
+                PushCommand.execute(slice(args,1));
                 break;
             default:
                 System.err.println("Unknown command: " + cmd);
