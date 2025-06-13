@@ -43,25 +43,26 @@ public class ClientHandler implements Runnable {
             Path bareRepo = repoRoot.resolve(repoName);
             Path cemDir = bareRepo.resolve(CEM_DIR);
 
+
             RepositoryManager.initIfMissing(cemDir,branch,repoName);
-            RepositoryManager repoMgr = new RepositoryManager(bareRepo);
 
             if("PUSH".equals(cem)){
-                handlePush(repoMgr, bareRepo, branch, in, out);
+                handlePush(bareRepo, branch, in, out);
             } else if ("FETCH".equals(cem)){
                 String clientHave = parts[3];
-                handleFetch(repoMgr, bareRepo, branch, clientHave, in, out);
+                handleFetch(bareRepo, branch, clientHave, in, out);
             }else{
                 out.write("ERR Unknown command\n");
             }
             out.flush();
         } catch (IOException e) {
             System.err.println("ClientHandler error: " + e.getMessage());
+            e.printStackTrace();
         }finally {
             try { socket.close(); } catch (IOException ignored) {}
         }
     }
-    private void handlePush(RepositoryManager repoMgr, Path bareRepo, String branch, BufferedReader in, BufferedWriter out) throws IOException {
+    private void handlePush(Path bareRepo, String branch, BufferedReader in, BufferedWriter out) throws IOException {
         Path cemDir = bareRepo.resolve(CEM_DIR);
         String line = in.readLine();
         if(!line.startsWith("COMMITS ")) throw new IOException("Expected COMMITS");
@@ -104,7 +105,7 @@ public class ClientHandler implements Runnable {
         out.write("OK\n");
     }
 
-    private void handleFetch(RepositoryManager repoMgr, Path bareRepo, String branch, String clientHave, BufferedReader in, BufferedWriter out) throws IOException {
+    private void handleFetch(Path bareRepo, String branch, String clientHave, BufferedReader in, BufferedWriter out) throws IOException {
         // 1) Read server’s current tip from bareRepo/.cemount/refs/heads/<branch>
         // 2) Compute all commits the server has that clientHave doesn’t
         // 3) out.write("COMMITS " + missing.size() + "\n");

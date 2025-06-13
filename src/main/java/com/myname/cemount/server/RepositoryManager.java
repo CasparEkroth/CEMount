@@ -21,6 +21,8 @@ public class RepositoryManager {
     private static final String OBJECTS_SUBDIR = "objects";
     private static final String REFS_DIR       = "refs";
     private static final String HEAD_FILE      = "HEAD";
+    private static final String HEADS_DIR      = "heads";
+
 
     public RepositoryManager(Path configFile) throws IOException{
         try(BufferedReader r = Files.newBufferedReader(configFile, StandardCharsets.UTF_8)){
@@ -53,13 +55,26 @@ public class RepositoryManager {
         return Collections.unmodifiableSet(repos.keySet());
     }
 
-    public static void initIfMissing(Path cemDir, String defaultBranch, String repoName) throws IOException{
-        if(!Files.exists(cemDir)) return;
+    public static void initIfMissing(Path cemDir, String defaultBranch, String repoName) throws IOException {
+        if (Files.exists(cemDir)) return;
+
         System.out.println("Creating repo '" + repoName + "' at " + cemDir);
-        Files.createDirectories(cemDir.resolve(OBJECTS_SUBDIR));
-        Files.createDirectories(cemDir.resolve(REFS_DIR));
-        Files.writeString(cemDir.resolve(HEAD_FILE),
+
+        Path objects = cemDir.resolve("objects");
+        Path refs = cemDir.resolve("refs");
+        Path heads = refs.resolve("heads");
+        Path headFile = cemDir.resolve("HEAD");
+
+        //System.out.println("Creating dirs: " + objects);
+        Files.createDirectories(objects);
+        //System.out.println("Creating dirs: " + heads);
+        Files.createDirectories(heads);
+        //System.out.println("Writing HEAD to: " + headFile);
+        Files.writeString(headFile,
                 "ref: refs/heads/" + defaultBranch + "\n",
                 StandardCharsets.US_ASCII);
+
+        System.out.println("Finished creating repo: " + repoName);
     }
+
 }

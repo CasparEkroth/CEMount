@@ -72,9 +72,12 @@ public class PushCommand {
         String serverIP = without.substring(0,idx);
 
         try(Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
-            BufferedInputStream in = new BufferedInputStream(socket.getInputStream());
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())))
+            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+        )
         {
+            OutputStream rawOut = socket.getOutputStream();
+
             out.write("PUSH " + repoName + " " + branch + "\n");
             out.flush();
 
@@ -89,21 +92,17 @@ public class PushCommand {
                         .resolve(sha.substring(0,2))
                         .resolve(sha.substring(2));
                 byte[] compressed = Files.readAllBytes(object);
-                out.write("OBJECT" + sha + " " + compressed.length + "\n");
+                out.write("OBJECT " + sha + " " + compressed.length + "\n");
                 out.flush();
-                socket.getOutputStream().write(compressed);
-                socket.getOutputStream().flush();
+                rawOut.write(compressed);
+                rawOut.flush();
             }
             out.write("UPDATE_REF " + branch + " " + localSha + "\n");
             out.flush();
 
-            StringBuilder reply = new StringBuilder();
-            int c;
-            while ((c = in.read()) != -1 && c != '\n'){
-                reply.append((char) c);
-            }
-            if(!reply.toString().startsWith("OK")){
-                System.err.println("Push failed: " + reply);
+            String response = in.readLine();
+            if(!response.startsWith("OK")){
+                System.err.println("Push failed: " + response);
             }else{
                 System.out.println("Push successful.");
             }
