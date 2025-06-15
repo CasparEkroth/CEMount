@@ -47,6 +47,7 @@ public class ServerCommand {
         Path dbDir;
         try{
             dbDir = createDataBaseDir(args[1]);
+            repoMgr = new RepositoryManager(dbDir, "master");
         }catch (IOException e){
             System.err.println("fatal: could not create CEM database dir: " + e.getMessage());
             return;
@@ -72,7 +73,7 @@ public class ServerCommand {
             while (isRunning){
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected: " + clientSocket.getInetAddress());
-                pool.submit(new ClientHandler(clientSocket, dbDir));
+                pool.submit(new ClientHandler(clientSocket, repoMgr ));
             }
         } catch (IOException e) {
             if(isRunning){
