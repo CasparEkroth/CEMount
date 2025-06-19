@@ -14,6 +14,8 @@ import java.nio.file.Paths;
  */
 public class Cem {
     private static final String CEM_DIR = ".cemount";
+    public static final String BOLD = "\033[1m";
+    public static final String RESET = "\033[0m";
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
@@ -67,7 +69,33 @@ public class Cem {
 
     private static void printHelpMsg(){
         // need to add a user m
-        System.out.println("help!!!");
+        // locke at the man git
+        System.out.println(BOLD + "NAME" + RESET);
+        System.out.println("\tcem - Caspar Ekroth Mount");
+        System.out.println();
+        System.out.println(BOLD + "DESCRIPTION" + RESET);
+        System.out.println("\tCEMount is a cli tool used for working white a distrubutedfilesistym");
+        System.out.println();
+        System.out.println("For README go to: https://github.com/CasparEkroth/CEMount");
+        System.out.println("Commands:");
+        System.out.println("all of the commands starts using 'cem' followed by a command");
+        System.out.println(BOLD + "init" + RESET);
+        System.out.println("\tInitialize a new CEMount repository");
+        System.out.println();
+        System.out.println(BOLD + "add" + RESET);
+        System.out.println("\tAdd files to the CEMount index");
+        System.out.println();
+        System.out.println(BOLD + "commit" + RESET);
+        System.out.println("\tCommit the current index");
+        System.out.println();
+        System.out.println(BOLD + "log" + RESET);
+        System.out.println("\tShow commit history");
+        System.out.println();
+        System.out.println(BOLD + "remote" + RESET);
+        System.out.println("\tManage remote repositories (e.g. local paths or tcp://host:port)");
+        System.out.println();
+        System.out.println(BOLD + "server" + RESET);
+        System.out.println("\tStars a CEMount data base");
     }
     /**
      * Create the .cemount directory structure and initial HEAD file.
