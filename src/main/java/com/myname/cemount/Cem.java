@@ -71,11 +71,9 @@ public class Cem {
         // need to add a user m
         // locke at the man git
         System.out.println(BOLD + "NAME" + RESET);
-        System.out.println("\tcem - Caspar Ekroth Mount");
-        System.out.println();
+        System.out.println("\tcem - Caspar Ekroth Mount\n");
         System.out.println(BOLD + "DESCRIPTION" + RESET);
-        System.out.println("\tCEMount is a cli tool used for working white a distrubutedfilesistym");
-        System.out.println();
+        System.out.println("\tCEMount is a cli tool used for working white a distrubutedfilesistym\n");
         System.out.println("For README go to: https://github.com/CasparEkroth/CEMount");
         System.out.println("Commands:");
         System.out.println("all of the commands starts using 'cem' followed by a command");

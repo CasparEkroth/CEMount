@@ -5,6 +5,7 @@ import com.myname.cemount.server.ClientHandler;
 import com.myname.cemount.server.RepositoryManager;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -31,6 +32,8 @@ public class ServerCommand {
     private static final int MAX_THREADS = 10;
     private static ServerSocket serverSocket;
     private static RepositoryManager repoMgr;
+    public static final String BOLD = "\033[1m";
+    public static final String RESET = "\033[0m";
 
     public static void execute(String[] args){
         if(args.length != 2){
@@ -61,6 +64,12 @@ public class ServerCommand {
                     if (line != null && line.equalsIgnoreCase("shutdown")) {
                         stop();
                     }
+                    if(line != null && line.equalsIgnoreCase("list")){
+                        listRepos(dbDir.toString());
+                    }
+                    /**
+                     * if I want more control over the server add more if() statement
+                     */
                 }
             } catch (IOException e) {
                 System.err.println("Console-watcher error: " + e.getMessage());
@@ -100,5 +109,16 @@ public class ServerCommand {
            // ...
         }
     }
-
+    private static void listRepos(String path){
+        File directory = new File(path);
+        String[] content = directory.list();
+        if(content != null){
+            System.out.println(BOLD + "REPOSITORY'S" + RESET);
+            for(String name : content){
+                System.out.println("\t" + name);
+            }
+        }else {
+            System.out.println(CEM_DB_DIR + " is empty");
+        }
+    }
 }
