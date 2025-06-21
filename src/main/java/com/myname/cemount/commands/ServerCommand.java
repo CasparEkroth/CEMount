@@ -61,15 +61,28 @@ public class ServerCommand {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
                 while (isRunning) {
                     String line = in.readLine();
-                    if (line != null && line.equalsIgnoreCase("shutdown")) {
-                        stop();
+                    if(line != null){
+                        String[] tokens = line.trim().split("\\s+");
+                        if(tokens.length == 0) continue;
+                        String cmd = tokens[0].toLowerCase();
+                        switch (cmd){
+                            case "shutdown":
+                                stop();
+                                break;
+                            case "list":
+                                listRepos(dbDir.toString());
+                                break;
+                            case "info":
+                                repoInfo(tokens[1]);
+                                break;
+                            case "view":
+                                viewRepo(tokens[1]);
+                                break;
+                            default:
+                                System.out.println("Unknown command: " + cmd);
+                                break;
+                        }
                     }
-                    if(line != null && line.equalsIgnoreCase("list")){
-                        listRepos(dbDir.toString());
-                    }
-                    /**
-                     * if I want more control over the server add more if() statement
-                     */
                 }
             } catch (IOException e) {
                 System.err.println("Console-watcher error: " + e.getMessage());
@@ -120,5 +133,11 @@ public class ServerCommand {
         }else {
             System.out.println(CEM_DB_DIR + " is empty");
         }
+    }
+    private static void viewRepo(String repoName){
+
+    }
+    private static void repoInfo(String repoName){
+
     }
 }
