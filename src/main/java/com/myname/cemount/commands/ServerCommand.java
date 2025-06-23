@@ -3,6 +3,7 @@ package com.myname.cemount.commands;
 
 import com.myname.cemount.server.ClientHandler;
 import com.myname.cemount.server.RepositoryManager;
+import com.myname.cemount.server.ViewCommand;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -32,8 +33,14 @@ public class ServerCommand {
     private static final int MAX_THREADS = 10;
     private static ServerSocket serverSocket;
     private static RepositoryManager repoMgr;
+
     public static final String BOLD = "\033[1m";
     public static final String RESET = "\033[0m";
+    private static final String CEM_DIR        = ".cemount";
+    private static final String OBJECTS_SUBDIR = "objects";
+    private static final String REFS_DIR       = "refs";
+    private static final String HEADS_DIR      = "heads";
+    private static final String HEAD_FILE      = "HEAD";
 
     public static void execute(String[] args){
         if(args.length != 2){
@@ -73,10 +80,10 @@ public class ServerCommand {
                                 listRepos(dbDir.toString());
                                 break;
                             case "info":
-                                repoInfo(tokens[1]);
+                                repoInfo(tokens[1],dbDir);
                                 break;
                             case "view":
-                                viewRepo(tokens[1]);
+                                ViewCommand.viewRepo(dbDir.resolve(tokens[1]));
                                 break;
                             default:
                                 System.out.println("Unknown command: " + cmd);
@@ -135,9 +142,19 @@ public class ServerCommand {
         }
     }
     private static void viewRepo(String repoName){
-
+        // show contents of files
+        // of the spsesicifc repo
     }
-    private static void repoInfo(String repoName){
+    private static void repoInfo(String repoName, Path dbDir){
+        File repo = new File(dbDir.resolve(repoName).toString());
+        String[] content = repo.list();
+        if(content != null){
+
+        }else {
+            System.out.println(CEM_DB_DIR + " is empty");
+        }
+        // info abut the repo ex nr of commits
+        // time for last commit
 
     }
 }
