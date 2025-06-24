@@ -73,6 +73,9 @@ public class ServerCommand {
                         if(tokens.length == 0) continue;
                         String cmd = tokens[0].toLowerCase();
                         switch (cmd){
+                            case "":
+                                break;
+                            case "q":
                             case "shutdown":
                                 stop();
                                 break;
@@ -89,6 +92,7 @@ public class ServerCommand {
                                 System.out.println("Unknown command: " + cmd);
                                 break;
                         }
+                        System.out.print("CEMount " + port + ": ");
                     }
                 }
             } catch (IOException e) {
@@ -99,6 +103,7 @@ public class ServerCommand {
         try{
             serverSocket = new ServerSocket(port, 50, InetAddress.getByName("0.0.0.0"));
             System.out.println("CEM server listening on port " + port);
+            System.out.print("CEMount " + port + ": ");
             while (isRunning){
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected: " + clientSocket.getInetAddress());
