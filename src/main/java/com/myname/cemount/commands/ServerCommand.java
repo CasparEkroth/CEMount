@@ -37,7 +37,6 @@ public class ServerCommand {
     public static final String BOLD = "\033[1m";
     public static final String RESET = "\033[0m";
     private static final String CEM_DIR        = ".cemount";
-    private static final String OBJECTS_SUBDIR = "objects";
     private static final String REFS_DIR       = "refs";
     private static final String HEADS_DIR      = "heads";
     private static final String HEAD_FILE      = "HEAD";
@@ -87,6 +86,9 @@ public class ServerCommand {
                                 break;
                             case "view":
                                 ViewCommand.viewRepo(dbDir.resolve(tokens[1]));
+                                break;
+                            case "-h":
+                                showServerCommands();
                                 break;
                             default:
                                 System.out.println("Unknown command: " + cmd);
@@ -146,10 +148,7 @@ public class ServerCommand {
             System.out.println(CEM_DB_DIR + " is empty");
         }
     }
-    private static void viewRepo(String repoName){
-        // show contents of files
-        // of the spsesicifc repo
-    }
+
     private static void repoInfo(String repoName, Path dbDir){
         File repo = new File(dbDir.resolve(repoName).toString());
         String[] content = repo.list();
@@ -161,5 +160,19 @@ public class ServerCommand {
         // info abut the repo ex nr of commits
         // time for last commit
 
+    }
+    private static void showServerCommands(){
+        System.out.println(BOLD + "COMMAND'S" + RESET);
+        System.out.println();
+        System.out.println(BOLD + "list" + RESET);
+        System.out.println("\tshows all repos in the CEMountDB folder\n");
+        System.out.println(BOLD + "info" + RESET);
+        System.out.println("\tshows info of the repo aka time ect\n");
+        System.out.println(BOLD + "view" + RESET);
+        System.out.println("\tshows the contents of a file in a repo\n");
+        System.out.println(BOLD + "shutdown" + RESET);
+        System.out.println("\tshutdown kills the server and closes the port\n");
+        System.out.println(BOLD + "-h" + RESET);
+        System.out.println("\tshows all commands supported by the server\n");
     }
 }
