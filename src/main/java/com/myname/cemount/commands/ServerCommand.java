@@ -82,10 +82,18 @@ public class ServerCommand {
                                 listRepos(dbDir.toString());
                                 break;
                             case "info":
+                                if(tokens.length != 2){
+                                    System.out.println("Error: the info command takes 1 arg");
+                                    break;
+                                }
                                 repoInfo(tokens[1],dbDir);
                                 break;
                             case "view":
-                                ViewCommand.viewRepo(dbDir.resolve(tokens[1]));
+                                if(tokens.length != 2){
+                                    System.out.println("Error: the view command takes 1 arg");
+                                    break;
+                                }
+                                ViewCommand.execute(dbDir.resolve(tokens[1]));
                                 break;
                             case "-h":
                                 showServerCommands();
@@ -162,8 +170,7 @@ public class ServerCommand {
 
     }
     private static void showServerCommands(){
-        System.out.println(BOLD + "COMMAND'S" + RESET);
-        System.out.println();
+        System.out.println(BOLD + "COMMAND'S\n" + RESET);
         System.out.println(BOLD + "list" + RESET);
         System.out.println("\tshows all repos in the CEMountDB folder\n");
         System.out.println(BOLD + "info" + RESET);

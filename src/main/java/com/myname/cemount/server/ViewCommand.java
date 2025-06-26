@@ -9,7 +9,8 @@ import java.util.zip.InflaterInputStream;
 
 public class ViewCommand {
     private static final String OBJECTS_SUBDIR = "objects";
-    public static void viewRepo(Path repoRoot){
+
+    public static void execute(Path repoRoot){
         Path objDir = repoRoot.resolve(OBJECTS_SUBDIR);
         try{
             Files.walk(objDir).filter(Files::isRegularFile).forEach(path -> {
