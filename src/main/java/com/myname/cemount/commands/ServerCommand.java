@@ -118,6 +118,7 @@ public class ServerCommand {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected: " + clientSocket.getInetAddress());
                 pool.submit(new ClientHandler(clientSocket, repoMgr ));
+                System.out.print(CEM_DB_DIR + " " + port + ": ");
             }
         } catch (IOException e) {
             if(isRunning){

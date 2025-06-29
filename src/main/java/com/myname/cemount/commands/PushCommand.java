@@ -58,58 +58,70 @@ public class PushCommand {
         /// ...
     }
 
-    private static void pushOverTcp(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir){
+    private static void pushOverTcp(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir) {
         String without = remoteUrl.substring("tcp://".length());
-        int idx = without.indexOf(':');
+        int idx   = without.indexOf(':');
         int slash = without.lastIndexOf('/');
-        // need to add this to the remoteCommand
-        String repoName  = without.substring(slash +1);
-        if(slash < idx){
-            slash = without.length();
-            repoName = "default";
-        }
-        String serverPort = without.substring(idx + 1, slash);
-        String serverIP = without.substring(0,idx);
+        String repoName = (slash >= idx)
+                ? without.substring(slash + 1)
+                : "default";
+        String serverPort = without.substring(idx + 1,
+                slash < idx ? without.length() : slash);
+        String serverIP   = without.substring(0, idx);
 
-        try(Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
-        )
-        {
+        try (Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
+             BufferedWriter out = new BufferedWriter(
+                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+             BufferedReader in = new BufferedReader(
+                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+        ) {
             OutputStream rawOut = socket.getOutputStream();
 
+            System.out.println("[client] ▶> PUSH " + repoName + " " + branch);
             out.write("PUSH " + repoName + " " + branch + "\n");
             out.flush();
 
+            System.out.println("[client] ▶> COMMITS " + commits.size());
             out.write("COMMITS " + commits.size() + "\n");
-            for (String sha : commits){
+            for (String sha : commits) {
                 out.write("COMMIT " + sha + "\n");
             }
             out.flush();
 
-            for (String sha : commits){
-                Path object = cemDir.resolve(OBJECTS)
-                        .resolve(sha.substring(0,2))
+            for (String sha : commits) {
+                Path object = cemDir.resolve("objects")
+                        .resolve(sha.substring(0, 2))
                         .resolve(sha.substring(2));
                 byte[] compressed = Files.readAllBytes(object);
+
+                System.out.println("[client] ▶> OBJECT " + sha + " " + compressed.length);
                 out.write("OBJECT " + sha + " " + compressed.length + "\n");
                 out.flush();
+
+                System.out.println("[client] ▶> raw bytes len=" + compressed.length);
                 rawOut.write(compressed);
+                rawOut.write('\n');
                 rawOut.flush();
+                System.out.println("[client] ▶> **did rawOut.flush()**");
             }
+
+            System.out.println("[client] ▶> UPDATE_REF " + branch + " " + localSha);
             out.write("UPDATE_REF " + branch + " " + localSha + "\n");
             out.flush();
-
+            System.out.println("[client] ▶> waiting for OK PUSH…");
             String response = in.readLine();
-            if(!response.startsWith("OK")){
+            System.out.println("[client] ◀< response: " + response);
+            if (!response.startsWith("OK")) {
                 System.err.println("Push failed: " + response);
-            }else{
+            } else {
                 System.out.println("Push successful.");
             }
-        }catch(IOException e){
+
+        } catch (IOException e) {
             System.err.println("cem push: failed to push: " + e.getMessage());
         }
     }
+
 
     private static List<String> findCommitsToPush(String localSha, Path cemDir) throws IOException {
         List<String> toPush = new ArrayList<>();
@@ -124,7 +136,6 @@ public class PushCommand {
             seen.add(sha);
             toPush.add(sha);
 
-            // Read commit object
             Path objectPath = cemDir.resolve("objects")
                     .resolve(sha.substring(0, 2))
                     .resolve(sha.substring(2));
@@ -134,7 +145,6 @@ public class PushCommand {
             byte[] raw = zlibDecompress(compressed);
             String content = new String(raw, StandardCharsets.UTF_8);
 
-            // Look for parent commit(s)
             for (String line : content.split("\n")) {
                 if (line.startsWith("parent: ")) {
                     String parentSha = line.substring(8).trim();
@@ -143,7 +153,6 @@ public class PushCommand {
             }
         }
 
-        // Important: oldest commits should go first
         Collections.reverse(toPush);
         return toPush;
     }

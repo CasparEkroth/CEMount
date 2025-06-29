@@ -1,12 +1,6 @@
 package com.myname.cemount.server;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,6 +13,7 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RepositoryManager repoManager;
     private final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final String REFS_DIR_HEAD       = "refs/heads";
 
     public ClientHandler(Socket socket, RepositoryManager repoManager) {
         this.socket = socket;
@@ -28,18 +23,20 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            InputStream sockIn = socket.getInputStream();
-            BufferedInputStream bin = new BufferedInputStream(sockIn);
-            BufferedReader in = new BufferedReader(new InputStreamReader(bin, StandardCharsets.UTF_8));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            InputStream rawIn = socket.getInputStream();
+            BufferedInputStream bin = new BufferedInputStream(rawIn);
+            //BufferedReader       in  = new BufferedReader( new InputStreamReader(bin, StandardCharsets.UTF_8));
+            BufferedWriter       out = new BufferedWriter( new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
-            String line;
-            while ((line = in.readLine()) != null) {
-                String[] parts = line.split(" ");
+
+            while (true) {
+                String cmdLine = readLine(bin);
+                if (cmdLine == null) break;
+                String[] parts = cmdLine.split(" ", 3);
                 String cmd = parts[0];
                 switch (cmd) {
                     case "INIT":
-                        handleInit(parts[1], parts[2], in, out);
+                        handleInit(parts[1], parts[2], out);
                         break;
                     case "CLONE":
                         handleClone(parts[1], parts[2], out);
@@ -49,8 +46,8 @@ public class ClientHandler implements Runnable {
                         String repoName = parts[1];
                         String branch = parts[2];
                         Path bareRepo = repoManager.getOrCreate(repoName);
-                        handlePush(bareRepo, branch, in, out, bin);
-                        break;
+                        handlePush(bareRepo, branch, out, bin);
+                        return;
                     // ... other commands
                     default:
                         out.write("ERROR Unknown command\n");
@@ -64,39 +61,70 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handlePush(Path bareRepo, String branch,
-                            BufferedReader in, BufferedWriter out,
+    private void handlePush(Path bareRepo,
+                            String branch,
+                            BufferedWriter out,
                             BufferedInputStream bin) throws IOException {
-        // Expect header: OBJECT <sha> <length>
-        String header;
-        while ((header = in.readLine()) != null && header.startsWith("OBJECT ")) {
-            String[] hdr = header.split(" ");
-            String sha = hdr[1];
-            int len = Integer.parseInt(hdr[2]);
 
-            // Read exactly 'len' bytes from the same buffered stream
-            byte[] raw = new byte[len];
-            int got = 0;
-            while (got < len) {
-                int r = bin.read(raw, got, len - got);
-                if (r == -1) {
-                    throw new IOException("Unexpected EOF in object bytes");
-                }
-                got += r;
+        System.out.println("[server] ◀ Enter handlePush()");
+        String line = readLine(bin);
+        System.out.println("[server] ◀ read line: " + line);
+        if (line != null && line.startsWith("COMMITS ")) {
+            int count = Integer.parseInt(line.split(" ")[1]);
+            for (int i = 0; i < count; i++) {
+                System.out.println("[server] ◀ skip: " + readLine(bin));
             }
-
-            // Write object file
-            Path objDir = bareRepo.resolve("objects").resolve(sha.substring(0, 2));
-            Files.createDirectories(objDir);
-            Path objFile = objDir.resolve(sha.substring(2));
-            Files.write(objFile, raw);
         }
+
+        String header;
+        while ((header = readLine(bin)) != null && header.startsWith("OBJECT ")) {
+            System.out.println("[server] ◀ got header: " + header);
+            String[] parts = header.split(" ", 3);
+            String sha = parts[1];
+            int    len = Integer.parseInt(parts[2]);
+            System.out.println("[server] ◀ about to read " + len + " bytes for " + sha);
+
+            byte[] raw = bin.readNBytes(len);
+            if (raw.length < len) {
+                throw new IOException("Unexpected EOF in object bytes");
+            }
+            int nl = bin.read();
+            if (nl != '\n') throw new IOException("Expected newline after object payload");
+
+            Path objDir  = bareRepo.resolve("objects").resolve(sha.substring(0,2));
+            Files.createDirectories(objDir);
+            Files.write(objDir.resolve(sha.substring(2)), raw);
+            System.out.println("[server] ◀ wrote object " + sha);
+        }
+
+        String update = (header != null && header.startsWith("UPDATE_REF "))
+                ? header
+                : readLine(bin);
+        if (update == null || !update.startsWith("UPDATE_REF ")) {
+            throw new IOException("Expected UPDATE_REF, got: " + update);
+        }
+        String[] up = update.split(" ", 3);
+        Files.writeString(bareRepo.resolve("refs/heads").resolve(up[1]),
+                up[2] + "\n",
+                StandardCharsets.UTF_8);
+        System.out.println("[server] ◀ updated ref " + up[1] + " -> " + up[2]);
+
         out.write("OK PUSH " + branch + "\n");
         out.flush();
+        System.out.println("[server] ▶ OK PUSH " + branch);
+    }
+
+    private String readLine(BufferedInputStream bin) throws IOException {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        int b;
+        while ((b = bin.read()) != -1 && b != '\n') {
+            line.write(b);
+        }
+        return line.toString(StandardCharsets.UTF_8.name());
     }
 
     private void handleInit(String repoName, String path,
-                            BufferedReader in, BufferedWriter out) throws IOException {
+                      BufferedWriter out) throws IOException {
         //Path repoPath = Paths.get(path).resolve(repoName).resolve(".cemount");
         repoManager.create(repoName);
         out.write("OK INIT " + repoName + "\n");
