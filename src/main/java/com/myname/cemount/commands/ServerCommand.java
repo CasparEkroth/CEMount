@@ -162,7 +162,7 @@ public class ServerCommand {
         File repo = new File(dbDir.resolve(repoName).toString());
         String[] content = repo.list();
         if(content != null){
-
+        // ...
         }else {
             System.out.println(CEM_DB_DIR + " is empty");
         }

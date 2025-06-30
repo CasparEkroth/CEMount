@@ -1,5 +1,7 @@
 package com.myname.cemount.server;
 
+import com.myname.cemount.commands.LogCommand;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -16,5 +18,6 @@ public class InfoCommand {
         Path refsHeads = cemDir.resolve(REFS_DIR).resolve(HEADS_DIR);
         Path headFile  = cemDir.resolve(HEAD_FILE);
         // retrieve the time and sum more info if needed :)
+        //LogCommand.execute(args);
     }
 }

@@ -77,11 +77,9 @@ public class PushCommand {
         ) {
             OutputStream rawOut = socket.getOutputStream();
 
-            System.out.println("[client] ▶> PUSH " + repoName + " " + branch);
             out.write("PUSH " + repoName + " " + branch + "\n");
             out.flush();
 
-            System.out.println("[client] ▶> COMMITS " + commits.size());
             out.write("COMMITS " + commits.size() + "\n");
             for (String sha : commits) {
                 out.write("COMMIT " + sha + "\n");
@@ -94,21 +92,16 @@ public class PushCommand {
                         .resolve(sha.substring(2));
                 byte[] compressed = Files.readAllBytes(object);
 
-                System.out.println("[client] ▶> OBJECT " + sha + " " + compressed.length);
                 out.write("OBJECT " + sha + " " + compressed.length + "\n");
                 out.flush();
 
-                System.out.println("[client] ▶> raw bytes len=" + compressed.length);
                 rawOut.write(compressed);
                 rawOut.write('\n');
                 rawOut.flush();
-                System.out.println("[client] ▶> **did rawOut.flush()**");
             }
 
-            System.out.println("[client] ▶> UPDATE_REF " + branch + " " + localSha);
             out.write("UPDATE_REF " + branch + " " + localSha + "\n");
             out.flush();
-            System.out.println("[client] ▶> waiting for OK PUSH…");
             String response = in.readLine();
             System.out.println("[client] ◀< response: " + response);
             if (!response.startsWith("OK")) {

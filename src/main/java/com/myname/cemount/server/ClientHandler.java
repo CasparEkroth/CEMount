@@ -66,9 +66,7 @@ public class ClientHandler implements Runnable {
                             BufferedWriter out,
                             BufferedInputStream bin) throws IOException {
 
-        System.out.println("[server] ◀ Enter handlePush()");
         String line = readLine(bin);
-        System.out.println("[server] ◀ read line: " + line);
         if (line != null && line.startsWith("COMMITS ")) {
             int count = Integer.parseInt(line.split(" ")[1]);
             for (int i = 0; i < count; i++) {
@@ -78,11 +76,9 @@ public class ClientHandler implements Runnable {
 
         String header;
         while ((header = readLine(bin)) != null && header.startsWith("OBJECT ")) {
-            System.out.println("[server] ◀ got header: " + header);
             String[] parts = header.split(" ", 3);
             String sha = parts[1];
             int    len = Integer.parseInt(parts[2]);
-            System.out.println("[server] ◀ about to read " + len + " bytes for " + sha);
 
             byte[] raw = bin.readNBytes(len);
             if (raw.length < len) {
@@ -94,7 +90,6 @@ public class ClientHandler implements Runnable {
             Path objDir  = bareRepo.resolve("objects").resolve(sha.substring(0,2));
             Files.createDirectories(objDir);
             Files.write(objDir.resolve(sha.substring(2)), raw);
-            System.out.println("[server] ◀ wrote object " + sha);
         }
 
         String update = (header != null && header.startsWith("UPDATE_REF "))
@@ -107,11 +102,9 @@ public class ClientHandler implements Runnable {
         Files.writeString(bareRepo.resolve("refs/heads").resolve(up[1]),
                 up[2] + "\n",
                 StandardCharsets.UTF_8);
-        System.out.println("[server] ◀ updated ref " + up[1] + " -> " + up[2]);
 
         out.write("OK PUSH " + branch + "\n");
         out.flush();
-        System.out.println("[server] ▶ OK PUSH " + branch);
     }
 
     private String readLine(BufferedInputStream bin) throws IOException {
