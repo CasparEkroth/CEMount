@@ -13,8 +13,9 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RepositoryManager repoManager;
     private final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final String CEM_DIR    = ".cemount";
     private static final String REFS_DIR_HEAD       = "refs/heads";
-
+    private static final String OBJECTS    = "objects";
     public ClientHandler(Socket socket, RepositoryManager repoManager) {
         this.socket = socket;
         this.repoManager = repoManager;
@@ -78,18 +79,19 @@ public class ClientHandler implements Runnable {
         while ((header = readLine(bin)) != null && header.startsWith("OBJECT ")) {
             String[] parts = header.split(" ", 3);
             String sha = parts[1];
-            int    len = Integer.parseInt(parts[2]);
+            int len = Integer.parseInt(parts[2]);
 
-            byte[] raw = bin.readNBytes(len);
-            if (raw.length < len) {
+            byte[] rawCom = bin.readNBytes(len);
+            if (rawCom.length < len) {
                 throw new IOException("Unexpected EOF in object bytes");
             }
+
+            Path objRoot = bareRepo.resolve(OBJECTS);
+           String realSha = ObjectUtils.storeObject(objRoot, rawCom);
+            System.out.printf("[server] stored %s at %s/%s\n",realSha, realSha.substring(0,2), realSha.substring(2));
+
             int nl = bin.read();
             if (nl != '\n') throw new IOException("Expected newline after object payload");
-
-            Path objDir  = bareRepo.resolve("objects").resolve(sha.substring(0,2));
-            Files.createDirectories(objDir);
-            Files.write(objDir.resolve(sha.substring(2)), raw);
         }
 
         String update = (header != null && header.startsWith("UPDATE_REF "))

@@ -1,12 +1,15 @@
 package com.myname.cemount.commands;
 
+import com.myname.cemount.server.ObjectUtils;
+
 import java.io.*;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class PushCommand {
     private static final String CEM_DIR    = ".cemount";
@@ -58,25 +61,29 @@ public class PushCommand {
         /// ...
     }
 
-    private static void pushOverTcp(String remoteUrl, String branch, String localSha, List<String> commits, Path cemDir) {
+    private static void pushOverTcp(String remoteUrl,
+                                    String branch,
+                                    String localSha,
+                                    List<String> commits,
+                                    Path cemDir) throws IOException {
+        // parse tcp://host:port/repoName
         String without = remoteUrl.substring("tcp://".length());
-        int idx   = without.indexOf(':');
-        int slash = without.lastIndexOf('/');
-        String repoName = (slash >= idx)
+        int idx1   = without.indexOf(':');
+        int slash  = without.lastIndexOf('/');
+        String repoName = (slash >= idx1)
                 ? without.substring(slash + 1)
                 : "default";
-        String serverPort = without.substring(idx + 1,
-                slash < idx ? without.length() : slash);
-        String serverIP   = without.substring(0, idx);
+        String serverPort = without.substring(idx1 + 1,
+                slash < idx1 ? without.length() : slash);
+        String serverIP   = without.substring(0, idx1);
 
         try (Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
              BufferedWriter out = new BufferedWriter(
-                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+                     new OutputStreamWriter(socket.getOutputStream(), UTF_8));
              BufferedReader in = new BufferedReader(
-                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+                     new InputStreamReader(socket.getInputStream(), UTF_8))
         ) {
             OutputStream rawOut = socket.getOutputStream();
-
             out.write("PUSH " + repoName + " " + branch + "\n");
             out.flush();
 
@@ -85,16 +92,38 @@ public class PushCommand {
                 out.write("COMMIT " + sha + "\n");
             }
             out.flush();
+            Set<String> toPush = new LinkedHashSet<>(commits);
 
-            for (String sha : commits) {
-                Path object = cemDir.resolve("objects")
-                        .resolve(sha.substring(0, 2))
+            for (String commitSha : commits) {
+                Path cObj = cemDir.resolve(OBJECTS)
+                        .resolve(commitSha.substring(0,2))
+                        .resolve(commitSha.substring(2));
+                byte[] full = ObjectUtils.zlibDecompress(Files.readAllBytes(cObj));
+                int i = 0;
+                while (i < full.length && full[i] != 0) i++;
+                String body = new String(full, i+1, full.length-i-1, UTF_8);
+
+                for (String line : body.split("\n")) {
+                    String[] parts = line.split(" ", 2);
+                    if (parts[0].matches("[0-9a-f]{40}")) {
+                        toPush.add(parts[0]);
+                    }
+                    else if (parts[0].equals("tree") && parts.length > 1) {
+                        toPush.add(parts[1]);
+                    }
+                }
+            }
+
+            collectObjectsRecursively(toPush, cemDir.resolve(OBJECTS));
+
+            for (String sha : toPush) {
+                Path obj = cemDir.resolve(OBJECTS)
+                        .resolve(sha.substring(0,2))
                         .resolve(sha.substring(2));
-                byte[] compressed = Files.readAllBytes(object);
+                byte[] compressed = Files.readAllBytes(obj);
 
                 out.write("OBJECT " + sha + " " + compressed.length + "\n");
                 out.flush();
-
                 rawOut.write(compressed);
                 rawOut.write('\n');
                 rawOut.flush();
@@ -103,18 +132,14 @@ public class PushCommand {
             out.write("UPDATE_REF " + branch + " " + localSha + "\n");
             out.flush();
             String response = in.readLine();
-            System.out.println("[client] ◀< response: " + response);
+            System.out.println("[client] ◀ response: " + response);
             if (!response.startsWith("OK")) {
                 System.err.println("Push failed: " + response);
             } else {
                 System.out.println("Push successful.");
             }
-
-        } catch (IOException e) {
-            System.err.println("cem push: failed to push: " + e.getMessage());
         }
     }
-
 
     private static List<String> findCommitsToPush(String localSha, Path cemDir) throws IOException {
         List<String> toPush = new ArrayList<>();
@@ -135,8 +160,8 @@ public class PushCommand {
             if (!Files.exists(objectPath)) continue;
 
             byte[] compressed = Files.readAllBytes(objectPath);
-            byte[] raw = zlibDecompress(compressed);
-            String content = new String(raw, StandardCharsets.UTF_8);
+            byte[] raw = ObjectUtils.zlibDecompress(compressed);
+            String content = new String(raw, UTF_8);
 
             for (String line : content.split("\n")) {
                 if (line.startsWith("parent: ")) {
@@ -153,7 +178,7 @@ public class PushCommand {
     private static String resolveLocalRef(Path cemDir, String branch) {
         Path ref = cemDir.resolve(REFS_DIR).resolve(HEADS_DIR).resolve(branch);
         try{
-            return Files.exists(ref) ? Files.readAllLines(ref, StandardCharsets.UTF_8).get(0).trim()
+            return Files.exists(ref) ? Files.readAllLines(ref, UTF_8).get(0).trim()
                     : null;
         } catch (IOException e) {
            return null;
@@ -164,7 +189,7 @@ public class PushCommand {
         Map<String, String> map = new HashMap<>();
         String key = null;
         try {
-            for (String raw : Files.readAllLines(configPath, StandardCharsets.UTF_8)) {
+            for (String raw : Files.readAllLines(configPath, UTF_8)) {
                 String line = raw.trim();
                 if (line.startsWith("[remote")) {
                     int firstQuote = line.indexOf('"');
@@ -188,17 +213,28 @@ public class PushCommand {
         return map;
     }
 
-    private static byte[] zlibDecompress(byte[] compressed) throws IOException {
-        try (java.util.zip.InflaterInputStream inflater =
-                     new java.util.zip.InflaterInputStream(new java.io.ByteArrayInputStream(compressed));
-             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
-            byte[] buffer = new byte[8192];
-            int len;
-            while ((len = inflater.read(buffer)) != -1) {
-                out.write(buffer, 0, len);
+    private static void collectObjectsRecursively(Set<String> seen, Path objectsRoot) throws IOException {
+        Queue<String> q = new ArrayDeque<>(seen);
+        while (!q.isEmpty()) {
+            String sha = q.poll();
+            Path p = objectsRoot.resolve(sha.substring(0,2)).resolve(sha.substring(2));
+            byte[] full = ObjectUtils.zlibDecompress(Files.readAllBytes(p));
+            int i = 0;
+            while (i < full.length && full[i] != 0) i++;
+            String payload = new String(full, i+1, full.length-i-1, UTF_8);
+
+            for (String line : payload.split("\n")) {
+                String[] parts = line.split(" ", 3);
+                if (parts[0].matches("[0-9a-f]{40}") && seen.add(parts[0])) {
+                    q.add(parts[0]);
+                }
+                else if (parts[0].equals("tree") && parts.length > 1 && seen.add(parts[1])) {
+                    q.add(parts[1]);
+                }
             }
-            return out.toByteArray();
         }
     }
+
+
 
 }
