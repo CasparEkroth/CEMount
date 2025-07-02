@@ -49,6 +49,9 @@ public class Cem {
             case "push":
                 PushCommand.execute(slice(args,1));
                 break;
+            case "fetch":
+                FetchCommand.execute(slice(args,1));
+                break;
             default:
                 System.err.println("Unknown command: " + cmd);
                 printUsage();
@@ -64,6 +67,8 @@ public class Cem {
         System.out.println("  log      Show commit history");
         System.out.println("  remote   Manage remote repositories (e.g. local paths or tcp://host:port)");
         System.out.println("  server   Stars a CEMount data base");
+        System.out.println("  fetch    Fetches the latest version");
+        System.out.println("  pull     Pulls the latest version from the remote");
         // more commands coming ;)
     }
 
