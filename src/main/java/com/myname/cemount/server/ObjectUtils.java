@@ -12,11 +12,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.zip.InflaterInputStream;
 
 public class ObjectUtils {
-    
+    private static final int    BUFFER_SIZE    = 8192;
+
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[8192];
+            byte[] buf = new byte[BUFFER_SIZE];
             int r;
             while ((r = in.read(buf)) != -1){
                 if(r > 0) {
@@ -26,6 +27,7 @@ public class ObjectUtils {
             return out.toByteArray();
         }
     }
+
     public static String extractFileContents(byte[] compressed) throws IOException {
         byte[] data = zlibDecompress(compressed);
         int idx = 0; // header
