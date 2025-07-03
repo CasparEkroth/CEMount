@@ -29,7 +29,7 @@ public class PushCommand {
 
         Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
         Path configPath = repoRoot.resolve(CEM_DIR).resolve(CONFIG);
-        Map<String, String> remote = parseRemotes(configPath);
+        Map<String, String> remote = ObjectUtils.parseRemotes(configPath);
 
         if(!remote.containsKey(remoteName)){
             System.err.printf("fatal: no such remote '%s'%n", remoteName);
@@ -185,33 +185,6 @@ public class PushCommand {
         }
     }
 
-    private static Map<String, String> parseRemotes(Path configPath) {
-        Map<String, String> map = new HashMap<>();
-        String key = null;
-        try {
-            for (String raw : Files.readAllLines(configPath, UTF_8)) {
-                String line = raw.trim();
-                if (line.startsWith("[remote")) {
-                    int firstQuote = line.indexOf('"');
-                    int secondQuote = line.indexOf('"', firstQuote + 1);
-                    if (firstQuote != -1 && secondQuote != -1 && secondQuote > firstQuote) {
-                        key = line.substring(firstQuote + 1, secondQuote);
-                    }
-                } else if (line.startsWith("url") && key != null) {
-                    int equalsIndex = line.indexOf('=');
-                    if (equalsIndex != -1) {
-                        String url = line.substring(equalsIndex + 1).trim();
-                        map.put(key, url);
-                        key = null;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("cem: failed to read remotes: " + e.getMessage());
-        }
-
-        return map;
-    }
 
     private static void collectObjectsRecursively(Set<String> seen, Path objectsRoot) throws IOException {
         Queue<String> q = new ArrayDeque<>(seen);

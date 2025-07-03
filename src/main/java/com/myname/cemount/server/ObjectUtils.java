@@ -9,7 +9,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.InflaterInputStream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ObjectUtils {
     private static final int    BUFFER_SIZE    = 8192;
@@ -99,5 +103,33 @@ public class ObjectUtils {
 
         Files.write(targetFile, rawCompressed, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         return sha;
+    }
+
+    public static Map<String, String> parseRemotes(Path configPath) {
+        Map<String, String> map = new HashMap<>();
+        String key = null;
+        try {
+            for (String raw : Files.readAllLines(configPath, UTF_8)) {
+                String line = raw.trim();
+                if (line.startsWith("[remote")) {
+                    int firstQuote = line.indexOf('"');
+                    int secondQuote = line.indexOf('"', firstQuote + 1);
+                    if (firstQuote != -1 && secondQuote != -1 && secondQuote > firstQuote) {
+                        key = line.substring(firstQuote + 1, secondQuote);
+                    }
+                } else if (line.startsWith("url") && key != null) {
+                    int equalsIndex = line.indexOf('=');
+                    if (equalsIndex != -1) {
+                        String url = line.substring(equalsIndex + 1).trim();
+                        map.put(key, url);
+                        key = null;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("cem: failed to read remotes: " + e.getMessage());
+        }
+
+        return map;
     }
 }
