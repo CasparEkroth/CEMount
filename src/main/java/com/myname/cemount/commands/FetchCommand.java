@@ -2,6 +2,7 @@ package com.myname.cemount.commands;
 
 import com.myname.cemount.server.ObjectUtils;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -15,7 +16,7 @@ public class FetchCommand {
     private static final String HEAD_FILE  = "HEAD";
 
     
-    public static void execute(String [] args){
+    public static void execute(String [] args) throws IOException {
         //cem fetch<remote> <repoName>
         // look at the remote
         // look at the latest commit
@@ -27,12 +28,15 @@ public class FetchCommand {
         String remoteName = args[0];
         String repoName = args[1];
         Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
-        Path configPath = repoRoot.resolve(CEM_DIR).resolve(CONFIG);
+        Path cemDir = repoRoot.resolve(CEM_DIR);
+        Path configPath = cemDir.resolve(CONFIG);
         Map<String, String> remote = ObjectUtils.parseRemotes(configPath);
         if(!remote.containsKey(remoteName)){
             System.err.printf("fatal: no such remote '%s'%n", remoteName);
             return;
         }
         String remoteUrl = remote.get(remoteName);
+        String branch = ObjectUtils.getBranch(cemDir);
+        String shaRef = ObjectUtils.getRef(cemDir,branch);
     }
 }

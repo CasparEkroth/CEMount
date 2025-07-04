@@ -17,6 +17,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ObjectUtils {
     private static final int    BUFFER_SIZE    = 8192;
+    private static final String REFS_DIR   = "refs";
+    private static final String HEADS_DIR  = "heads";
+    private static final String HEAD_FILE  = "HEAD";
 
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));
@@ -131,5 +134,16 @@ public class ObjectUtils {
         }
 
         return map;
+    }
+
+    public static String getRef(Path cemDir, String branch) throws IOException {
+        Path refPath = cemDir.resolve(REFS_DIR).resolve(HEADS_DIR).resolve(branch);
+        return Files.readString(refPath, UTF_8).trim();
+    }
+
+    public static String getBranch(Path cemDir) throws IOException{
+        Path headPath = cemDir.resolve(HEAD_FILE);
+        String[] parts = Files.readString(headPath, UTF_8).split("/");
+        return parts[parts.length - 1].trim();
     }
 }
