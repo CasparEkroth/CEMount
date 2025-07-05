@@ -19,34 +19,29 @@ public class FetchCommand {
 
     
     public static void execute(String [] args) throws IOException {
-        //cem fetch<remote> <repoName>
-        // look at the remote
-        // look at the latest commit
-        // send the latest commit
-        if(args.length != 2){
+        //cem fetch<remote>
+        if(args.length != 1){
             System.err.println("Usage: cem fetch");
             return;
         }
         String remoteName = args[0];
-        String repoName = args[1];
         Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
         Path cemDir = repoRoot.resolve(CEM_DIR);
         Path configPath = cemDir.resolve(CONFIG);
         Map<String, String> remote = ObjectUtils.parseRemotes(configPath);
+
         if(!remote.containsKey(remoteName)){
             System.err.printf("fatal: no such remote '%s'%n", remoteName);
             return;
         }
         String remoteUrl = remote.get(remoteName);
+        String[] net = ObjectUtils.parseRemote(remoteUrl);
+        String repoName = net[0];
+        String serverPort = net[1];
+        String serverIP = net[2];
+
         String branch = ObjectUtils.getBranch(cemDir);
         String shaRef = ObjectUtils.getRef(cemDir,branch).trim();
-
-        String without = remoteUrl.substring("tcp://".length());
-        int idx1   = without.indexOf(':');
-        int slash  = without.lastIndexOf('/');
-        String serverPort = without.substring(idx1 + 1,
-                slash < idx1 ? without.length() : slash);
-        String serverIP   = without.substring(0, idx1);
 
         try(Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
@@ -56,6 +51,7 @@ public class FetchCommand {
             out.flush();
 
             String respons = in.readLine().trim();
+
             if(respons.equals(shaRef)){
                 System.out.println("Already up to date.");
                 out.write("OK \n");
@@ -64,7 +60,7 @@ public class FetchCommand {
             }else {
                 out.write(shaRef + "\n");
                 out.flush();
-
+                System.out.println(shaRef);
                 in.readLine();
             }
             // add logig for the fetch (on server also)

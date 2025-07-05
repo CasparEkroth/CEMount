@@ -41,7 +41,7 @@ public class ObjectUtils {
         while (idx < data.length && data[idx] != 0){
             idx++;
         }
-        return new String(data,idx +1, data.length - idx - 1, StandardCharsets.UTF_8);
+        return new String(data,idx +1, data.length - idx - 1, UTF_8);
     }
     public static void printObject(Path objPath) throws IOException {
         byte[] compressed = Files.readAllBytes(objPath);
@@ -145,5 +145,31 @@ public class ObjectUtils {
         Path headPath = cemDir.resolve(HEAD_FILE);
         String[] parts = Files.readString(headPath, UTF_8).split("/");
         return parts[parts.length - 1].trim();
+    }
+
+    public static String[] parseRemote(String remoteUrl){
+        // parse tcp://host:port/repoName
+        String[] parts = new String[3];
+        if(remoteUrl.startsWith("tcp")){
+            String without = remoteUrl.substring("tcp://".length());
+            int idx1   = without.indexOf(':');
+            int slash  = without.lastIndexOf('/');
+            String repoName = (slash >= idx1)
+                    ? without.substring(slash + 1)
+                    : "default";
+            String serverPort = without.substring(idx1 + 1,
+                    slash < idx1 ? without.length() : slash);
+            String serverIP   = without.substring(0, idx1);
+            parts[0] = repoName;
+            parts[1] = serverPort;
+            parts[2] = serverIP;
+        }else {
+            // handel true Url
+            // URI uri = new URI(remoteUrl);
+            parts[0] = "";
+            parts[1] = "";
+            parts[2] = "";
+        }
+        return parts;
     }
 }

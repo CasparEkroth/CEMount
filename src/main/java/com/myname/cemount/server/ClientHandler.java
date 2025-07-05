@@ -35,6 +35,10 @@ public class ClientHandler implements Runnable {
                 if (cmdLine == null) break;
                 String[] parts = cmdLine.split(" ", 3);
                 String cmd = parts[0];
+                String repoName = parts[1];
+                String branch = parts[2];
+                // XXXX <repo-name> <branch>
+                Path bareRepo = repoManager.getOrCreate(repoName);
                 switch (cmd) {
                     case "INIT":
                         handleInit(parts[1], parts[2], out);
@@ -43,13 +47,11 @@ public class ClientHandler implements Runnable {
                         handleClone(parts[1], parts[2], out);
                         break;
                     case "PUSH":
-                        // PUSH <repo-name> <branch>
-                        String repoName = parts[1];
-                        String branch = parts[2];
-                        Path bareRepo = repoManager.getOrCreate(repoName);
                         handlePush(bareRepo, branch, out, bin);
                         return;
-                    // ... other commands
+                    case "FETCH":
+                        handleFetch(bareRepo, branch, out, bin);
+                        break;
                     default:
                         out.write("ERROR Unknown command\n");
                         out.flush();
@@ -60,6 +62,20 @@ public class ClientHandler implements Runnable {
         } finally {
             try { socket.close(); } catch (IOException ignored) {}
         }
+    }
+
+    private static void handleFetch(Path bareRepo, String branch, BufferedWriter out, BufferedInputStream bin) throws  IOException {
+        Path cemDir = bareRepo;
+        String latestSha = ObjectUtils.getRef(cemDir, branch);
+        out.write(latestSha + "\n");
+        out.flush();
+        String respons = readLine(bin).trim();
+        if(respons.equals("OK ")){
+            return;
+        }else {
+            System.out.println(respons);
+        }
+        System.out.println();
     }
 
     private void handlePush(Path bareRepo,
@@ -109,7 +125,7 @@ public class ClientHandler implements Runnable {
         out.flush();
     }
 
-    private String readLine(BufferedInputStream bin) throws IOException {
+    private static String readLine(BufferedInputStream bin) throws IOException {
         ByteArrayOutputStream line = new ByteArrayOutputStream();
         int b;
         while ((b = bin.read()) != -1 && b != '\n') {

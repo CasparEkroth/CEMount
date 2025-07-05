@@ -66,16 +66,11 @@ public class PushCommand {
                                     String localSha,
                                     List<String> commits,
                                     Path cemDir) throws IOException {
-        // parse tcp://host:port/repoName
-        String without = remoteUrl.substring("tcp://".length());
-        int idx1   = without.indexOf(':');
-        int slash  = without.lastIndexOf('/');
-        String repoName = (slash >= idx1)
-                ? without.substring(slash + 1)
-                : "default";
-        String serverPort = without.substring(idx1 + 1,
-                slash < idx1 ? without.length() : slash);
-        String serverIP   = without.substring(0, idx1);
+
+        String[] net = ObjectUtils.parseRemote(remoteUrl);
+        String repoName = net[0];
+        String serverPort = net[1];
+        String serverIP = net[2];
 
         try (Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
              BufferedWriter out = new BufferedWriter(
