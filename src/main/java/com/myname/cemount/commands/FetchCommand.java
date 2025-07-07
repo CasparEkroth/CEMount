@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Map;
 
 public class FetchCommand {
@@ -16,7 +17,7 @@ public class FetchCommand {
     private static final String HEADS_DIR  = "heads";
     private static final String OBJECTS    = "objects";
     private static final String HEAD_FILE  = "HEAD";
-
+    private static final String FETCH_FILE = "FETCH_HEAD";
     
     public static void execute(String [] args) throws IOException {
         //cem fetch<remote>
@@ -54,17 +55,25 @@ public class FetchCommand {
 
             if(respons.equals(shaRef)){
                 System.out.println("Already up to date.");
-                out.write("OK \n");
-                out.flush();
-                return;
-            }else {
                 out.write(shaRef + "\n");
                 out.flush();
-                System.out.println(shaRef);
-                in.readLine();
+                return;
             }
-            // add logig for the fetch (on server also)
+            out.write(shaRef + "\n");
+            out.flush();
 
+            String cntLine = in.readLine().trim();
+            int count = Integer.parseInt(cntLine);
+            System.out.println("nr of obj " + count);
+
+            String[] newSha = new String[count];
+            for(int i = 0 ; i < count; i++){
+                newSha[i] = in.readLine();
+
+            }
+            System.out.println(Arrays.toString(newSha));
+            Path fetchPath = cemDir.resolve(FETCH_FILE);
+            ObjectUtils.addToFile(fetchPath,newSha);
         }
     }
 }

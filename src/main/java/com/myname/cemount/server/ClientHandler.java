@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,8 +26,9 @@ public class ClientHandler implements Runnable {
     public void run() {
         try {
             InputStream rawIn = socket.getInputStream();
+            OutputStream        binOut = socket.getOutputStream();
             BufferedInputStream bin = new BufferedInputStream(rawIn);
-            //BufferedReader       in  = new BufferedReader( new InputStreamReader(bin, StandardCharsets.UTF_8));
+            BufferedReader       in  = new BufferedReader( new InputStreamReader(bin, StandardCharsets.UTF_8));
             BufferedWriter       out = new BufferedWriter( new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
 
@@ -50,7 +52,14 @@ public class ClientHandler implements Runnable {
                         handlePush(bareRepo, branch, out, bin);
                         return;
                     case "FETCH":
-                        handleFetch(bareRepo, branch, out, bin);
+                        handleFetch(in, out, binOut ,bareRepo,branch);
+                        /*
+                        Path cemDir = bareRepo;
+                        String sha = "acac1344a2baa9b6dfdc367186291a4c44cea4e3";
+                        byte[] compressed = ObjectUtils.loadObject(cemDir, sha);
+                        String body = ObjectUtils.extractFileContents(compressed);
+                        System.out.println(body);
+                        */
                         break;
                     default:
                         out.write("ERROR Unknown command\n");
@@ -64,18 +73,28 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private static void handleFetch(Path bareRepo, String branch, BufferedWriter out, BufferedInputStream bin) throws  IOException {
-        Path cemDir = bareRepo;
-        String latestSha = ObjectUtils.getRef(cemDir, branch);
-        out.write(latestSha + "\n");
-        out.flush();
-        String respons = readLine(bin).trim();
-        if(respons.equals("OK ")){
+    public void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut, OutputStream binOut, Path bareRepo, String branch) throws IOException {
+        String remoteSha = ObjectUtils.getRef(bareRepo, branch);
+
+        ctrlOut.write(remoteSha + "\n");
+        ctrlOut.flush();
+
+        String haveSha = ctrlIn.readLine().trim();
+
+        if(haveSha.equals(remoteSha)){
+            System.out.println("no update needed");
             return;
-        }else {
-            System.out.println(respons);
         }
-        System.out.println();
+        List<String> missing = ObjectUtils.listMissing(bareRepo, haveSha, remoteSha);
+
+        System.out.println(missing);
+        ctrlOut.write(missing.size() + "\n");
+        ctrlOut.flush();
+
+        for(int i = 0; i < missing.size(); i++){
+            ctrlOut.write(missing.get(i) + "\n");
+            ctrlOut.flush();
+        }
     }
 
     private void handlePush(Path bareRepo,

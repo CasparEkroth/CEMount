@@ -2,6 +2,7 @@ package com.myname.cemount.server;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,17 +10,20 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.InflaterInputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ObjectUtils {
     private static final int    BUFFER_SIZE    = 8192;
-    private static final String REFS_DIR   = "refs";
-    private static final String HEADS_DIR  = "heads";
-    private static final String HEAD_FILE  = "HEAD";
+    private static final String REFS_DIR       = "refs";
+    private static final String HEADS_DIR      = "heads";
+    private static final String HEAD_FILE      = "HEAD";
+    private static final String OBJECTS        = "objects";
+    private static final String FETCH_FILE     = "FETCH_HEAD";
 
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));
@@ -172,4 +176,58 @@ public class ObjectUtils {
         }
         return parts;
     }
+
+    public static byte[] loadObject(Path cemDir, String sha) throws IOException{
+        Path objPath = cemDir.resolve(OBJECTS).resolve(sha.substring(0,2)).resolve(sha.substring(2));
+        return Files.readAllBytes(objPath);
+
+    }
+
+    public static List<String> listMissing(Path cemDir,
+                                           String haveSha,
+                                           String remoteSha) throws IOException {
+        Path objectsDir = cemDir.resolve(OBJECTS);
+        Set<String> haveSet;
+        try (Stream<Path> paths = Files.walk(objectsDir, 2)) {
+            haveSet = paths
+                    .filter(Files::isRegularFile)
+                    .map(path -> path.getFileName().toString())
+                    .collect(Collectors.toSet());
+        }
+
+        Set<String> wantSet = new LinkedHashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        stack.push(remoteSha);
+
+        while (!stack.isEmpty()) {
+            String sha = stack.pop();
+            if (!wantSet.add(sha)) continue;
+
+            byte[] raw  = loadObject(cemDir, sha);
+            byte[] data = zlibDecompress(raw);
+
+            int idx = 0; while (data[idx] != 0) idx++;
+            String body = new String(data, idx+1, data.length - (idx+1), UTF_8);
+
+            for (String line : body.split("\n")) {
+                if (line.startsWith("tree ") || line.startsWith("parent ")) {
+                    stack.push(line.substring(line.indexOf(' ')+1));
+                }
+            }
+        }
+        wantSet.removeAll(haveSet);
+
+        return new ArrayList<>(wantSet);
+    }
+
+    public static void addToFile(Path filePath, String[] appends) throws IOException {
+        List<String> lines = Files.readAllLines(filePath, UTF_8);
+        for(String line : appends){
+            lines.add(line);
+        }
+        Set<String> noDupes = new LinkedHashSet<>(lines);
+        lines = new ArrayList<>(noDupes);
+        Files.write(filePath, lines,UTF_8, StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+    }// add a filter for blanc lines
+
 }
