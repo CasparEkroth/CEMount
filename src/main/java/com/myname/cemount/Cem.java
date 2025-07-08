@@ -2,11 +2,13 @@ package com.myname.cemount;
 
 import com.myname.cemount.commands.*;
 import com.myname.cemount.core.CommitCommand;
+import com.myname.cemount.server.ObjectUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 /**
  * Entry point for the `cem` CLI tool.
@@ -54,6 +56,18 @@ public class Cem {
                 break;
             case "pull":
                 PullCommand.execute(slice(args,1));
+                break;
+            case "t":
+                Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
+                Path cemDir = repoRoot.resolve(CEM_DIR);
+                String sha = "8b456f5f40aaedaecf828156382494dd53eff4ca";
+                String text =  ObjectUtils.readObjectText(cemDir,sha);
+
+                System.out.println(text);
+
+                //text =  ObjectUtils.readObjectText(cemDir,"03ed7510cbaa462ed0f6f62c899999ad74336192");
+                //System.out.println("sha: " + ObjectUtils.hexToString("03ed7510cbaa462ed0f6f62c899999ad74336192"));
+                //System.out.println(text);
                 break;
             default:
                 System.err.println("Unknown command: " + cmd);

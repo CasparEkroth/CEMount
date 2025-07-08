@@ -1,6 +1,7 @@
 package com.myname.cemount.commands;
 
 import com.myname.cemount.server.ObjectUtils;
+import com.myname.cemount.commands.FetchCommand;
 
 import java.io.*;
 import java.net.Socket;
@@ -18,21 +19,20 @@ public class PullCommand {
     private static final String OBJECTS             = "objects";
     private static final String FETCH_FILE          = "FETCH_HEAD";
     private static final String CONFIG              = "config";
-
+    private static final String UPDATE_FILE         = "UPDATE";
 
     public static void execute(String[] args) throws IOException {
-        if(args.length != 1){
+        if (args.length != 1) {
             System.err.println("usage: cem pull <remote>");
             return;
         }
         String remoteName = args[0];
-        //System.out.println(remoteName + " ssss");
         Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
         Path cemDir = repoRoot.resolve(CEM_DIR);
         Path configPath = cemDir.resolve(CONFIG);
         Map<String, String> remote = ObjectUtils.parseRemotes(configPath);
 
-        if(!remote.containsKey(remoteName)){
+        if (!remote.containsKey(remoteName)) {
             System.err.printf("fatal: no such remote '%s'\n", remoteName);
             return;
         }
@@ -49,25 +49,24 @@ public class PullCommand {
 
         Path fetchFile = cemDir.resolve(FETCH_FILE);
         List<String> missing = Files.readAllLines(fetchFile, StandardCharsets.UTF_8);
-        for(String sha : missing ){
-            if(sha.trim().isEmpty()){
-                missing.remove(sha);
-            }
-        }
-        try(Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        ){
+        missing.removeIf(s -> s.trim().isEmpty());
+
+        try (Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
+
             out.write("PULL " + repoName + " " + branch + "\n");
             out.flush();
 
             InputStream bin = socket.getInputStream();
             out.write(missing.size() + "\n");
             out.flush();
-            for(int i = 0;i < missing.size(); i++){
-                out.write(missing.get(i) + "\n");
+
+            for (int i = 0; i < missing.size(); i++) {
+                String sha = missing.get(i);
+                out.write(sha + "\n");
                 out.flush();
-                //int len = Integer.parseInt(in.readLine().trim());
+
                 String line = in.readLine();
                 if (line == null || line.equals("END")) break;
                 int len = Integer.parseInt(line.trim());
@@ -75,19 +74,53 @@ public class PullCommand {
                 byte[] data = bin.readNBytes(len);
                 Path objPath = cemDir
                         .resolve(OBJECTS)
-                        .resolve(missing.get(i).substring(0,2))
-                        .resolve(missing.get(i).substring(2));
+                        .resolve(sha.substring(0, 2))
+                        .resolve(sha.substring(2));
 
-                if(!Files.exists(objPath)){
+                if (!Files.exists(objPath.getParent())) {
                     Files.createDirectories(objPath.getParent());
                 }
-                Files.write(objPath,data, StandardOpenOption.CREATE,StandardOpenOption.WRITE);
-
+                Files.write(objPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             }
             bin.close();
+
+            Path updatePath = cemDir.resolve(UPDATE_FILE);
+            ObjectUtils.appendToFile(fetchFile, updatePath);
             Files.deleteIfExists(fetchFile);
             Files.createFile(fetchFile);
-            // update the real file
+
+            // === determine the new HEAD commit SHA ===
+            String newHeadSha = null;
+            for (String sha : missing) {
+                Path shaPath = cemDir
+                        .resolve(OBJECTS)
+                        .resolve(sha.substring(0, 2))
+                        .resolve(sha.substring(2));
+                byte[] compressed = Files.readAllBytes(shaPath);
+                byte[] fullBlob = ObjectUtils.zlibDecompress(compressed);
+
+                int idx = 0;
+                while (idx < fullBlob.length && fullBlob[idx] != 0) idx++;
+                String header = new String(fullBlob, 0, idx, StandardCharsets.UTF_8);
+                String[] hdr = header.split(" ");
+                if ("commit".equals(hdr[0])) {
+                    newHeadSha = sha;
+                    break;
+                }
+            }
+            if (newHeadSha == null) {
+                System.err.println("fatal: no commit object found in fetched objects");
+                return;
+            }
+
+            // update the branch ref
+            ObjectUtils.updateRef(cemDir, REFS_DIR_HEAD + "/" + branch, newHeadSha);
+
+            // overwrite working-tree files to match the new commit
+
+
+        } catch (IOException e) {
+            System.err.println("pull failed: " + e.getMessage());
         }
     }
 }

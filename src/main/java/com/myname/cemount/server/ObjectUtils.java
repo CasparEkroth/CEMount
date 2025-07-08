@@ -4,9 +4,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -37,7 +39,7 @@ public class ObjectUtils {
             return out.toByteArray();
         }
     }
-
+    /*
     public static String extractFileContents(byte[] compressed) throws IOException {
         byte[] data = zlibDecompress(compressed);
         int idx = 0; // header
@@ -69,6 +71,7 @@ public class ObjectUtils {
         }
         return sha;
     }
+    */
     /**
      * Compute SHA-1 digest and return lowercase hex string.
      */
@@ -229,4 +232,28 @@ public class ObjectUtils {
         Files.write(filePath, lines,UTF_8, StandardOpenOption.CREATE,StandardOpenOption.WRITE);
     }// add a filter for blanc lines
 
+    public static void appendToFile(Path src, Path des) throws IOException {
+        List<String> lines = Files.readAllLines(src);
+        if(!Files.exists(des)){
+            Files.createFile(des);
+        }
+        Files.write(des,lines, UTF_8,StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+    }
+
+    public static void updateRef(Path cemDir, String ref, String newHeadSha) throws IOException {
+        Path refPath = cemDir.resolve(ref);
+        Files.deleteIfExists(refPath);
+        Files.createFile(refPath);
+        Files.write(refPath,(newHeadSha + "\n").getBytes(StandardCharsets.UTF_8),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+    }
+
+    public static String readObjectText(Path cemDir, String sha) throws IOException {
+        byte[] full = zlibDecompress(loadObject(cemDir, sha));
+        // skip header (up to the first 0 byte)
+        int i = 0;
+        while (i < full.length && full[i] != 0) i++;
+        return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
+    }
+
 }
+
