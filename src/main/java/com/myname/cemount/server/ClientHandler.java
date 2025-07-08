@@ -52,15 +52,11 @@ public class ClientHandler implements Runnable {
                         handlePush(bareRepo, branch, out, bin);
                         return;
                     case "FETCH":
-                        handleFetch(in, out, binOut ,bareRepo,branch);
-                        /*
-                        Path cemDir = bareRepo;
-                        String sha = "acac1344a2baa9b6dfdc367186291a4c44cea4e3";
-                        byte[] compressed = ObjectUtils.loadObject(cemDir, sha);
-                        String body = ObjectUtils.extractFileContents(compressed);
-                        System.out.println(body);
-                        */
+                        handleFetch(in, out ,bareRepo,branch);
                         break;
+                    case "PULL":
+                        handelPull(in, out, binOut, bareRepo, branch);
+                        return;
                     default:
                         out.write("ERROR Unknown command\n");
                         out.flush();
@@ -73,7 +69,21 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut, OutputStream binOut, Path bareRepo, String branch) throws IOException {
+    private static void handelPull(BufferedReader textIn, BufferedWriter textOut, OutputStream binOut, Path bareRepo, String branch) throws IOException{
+        int conut = Integer.parseInt(textIn.readLine().trim());
+        for(int i = 0; i < conut; i++){
+            String sha = textIn.readLine();
+            byte[] raw = ObjectUtils.loadObject(bareRepo,sha);
+            textOut.write(raw.length + "\n");
+            textOut.flush();
+            binOut.write(raw);
+            binOut.flush();
+        }
+        textOut.write("END\n");
+        textOut.flush();
+    }
+
+    private static void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut, Path bareRepo, String branch) throws IOException {
         String remoteSha = ObjectUtils.getRef(bareRepo, branch);
 
         ctrlOut.write(remoteSha + "\n");
@@ -87,7 +97,7 @@ public class ClientHandler implements Runnable {
         }
         List<String> missing = ObjectUtils.listMissing(bareRepo, haveSha, remoteSha);
 
-        System.out.println(missing);
+        //System.out.println(missing);
         ctrlOut.write(missing.size() + "\n");
         ctrlOut.flush();
 

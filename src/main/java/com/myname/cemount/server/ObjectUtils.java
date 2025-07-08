@@ -23,7 +23,6 @@ public class ObjectUtils {
     private static final String HEADS_DIR      = "heads";
     private static final String HEAD_FILE      = "HEAD";
     private static final String OBJECTS        = "objects";
-    private static final String FETCH_FILE     = "FETCH_HEAD";
 
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));

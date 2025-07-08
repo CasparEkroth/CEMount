@@ -64,14 +64,14 @@ public class FetchCommand {
 
             String cntLine = in.readLine().trim();
             int count = Integer.parseInt(cntLine);
-            System.out.println("nr of obj " + count);
+            //System.out.println("nr of obj " + count);
 
             String[] newSha = new String[count];
             for(int i = 0 ; i < count; i++){
                 newSha[i] = in.readLine();
 
             }
-            System.out.println(Arrays.toString(newSha));
+            //System.out.println(Arrays.toString(newSha));
             Path fetchPath = cemDir.resolve(FETCH_FILE);
             ObjectUtils.addToFile(fetchPath,newSha);
         }

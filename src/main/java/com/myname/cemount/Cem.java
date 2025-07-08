@@ -52,6 +52,9 @@ public class Cem {
             case "fetch":
                 FetchCommand.execute(slice(args,1));
                 break;
+            case "pull":
+                PullCommand.execute(slice(args,1));
+                break;
             default:
                 System.err.println("Unknown command: " + cmd);
                 printUsage();
@@ -99,6 +102,9 @@ public class Cem {
         System.out.println();
         System.out.println(BOLD + "server" + RESET);
         System.out.println("\tStars a CEMount data base");
+        System.out.println(BOLD + "fetch" + RESET);
+        System.out.println("\tupdates the FETCH_HEAD used for the pull command");
+
     }
     /**
      * Create the .cemount directory structure and initial HEAD file.
@@ -116,6 +122,8 @@ public class Cem {
             // Create directories
             Files.createDirectories(cemDir.resolve("objects"));
             Files.createDirectories(cemDir.resolve("refs/heads"));
+
+            Files.createFile(cemDir.resolve("FETCH_HEAD"));
 
             // Write initial HEAD pointing to master
             Path headFile = cemDir.resolve("HEAD");
