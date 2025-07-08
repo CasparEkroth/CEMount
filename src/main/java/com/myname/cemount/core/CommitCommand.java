@@ -17,6 +17,8 @@ public class CommitCommand {
     private static final String HEAD_FILE      = "HEAD";
     private static final String INDEX_TXT      = "index.txt";
 
+    private static final String ECHO_FILE      = "ECHO";
+
     public static void execute(String[] args) {
         // Require exactly: cem commit -m "some message"
         if (args.length < 2 || !args[0].equals("-m")) {
@@ -31,6 +33,8 @@ public class CommitCommand {
         Path refsHeads = cemDir.resolve(REFS_DIR).resolve(HEADS_DIR);
         Path headFile  = cemDir.resolve(HEAD_FILE);
         Path indexTxt  = cemDir.resolve(INDEX_TXT);
+
+        Path echoDir   = cemDir.resolve(ECHO_FILE);
 
         if (Files.notExists(headFile)) {
             try {

@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
 import java.util.zip.InflaterInputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -39,39 +40,23 @@ public class ObjectUtils {
             return out.toByteArray();
         }
     }
-    /*
-    public static String extractFileContents(byte[] compressed) throws IOException {
-        byte[] data = zlibDecompress(compressed);
-        int idx = 0; // header
-        while (idx < data.length && data[idx] != 0){
-            idx++;
+
+    public static byte[] zlibCompress(byte[] input) throws IOException {
+        Deflater def = new Deflater();
+        def.setInput(input);
+        def.finish();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            while (!def.finished()) {
+                int count = def.deflate(buf);
+                baos.write(buf, 0, count);
+            }
+            return baos.toByteArray();
+        } finally {
+            def.end();
         }
-        return new String(data,idx +1, data.length - idx - 1, UTF_8);
-    }
-    public static void printObject(Path objPath) throws IOException {
-        byte[] compressed = Files.readAllBytes(objPath);
-        String contents = extractFileContents(compressed);
-        System.out.println("----- file contents -----");
-        System.out.println(contents);
     }
 
-    public static String buildSha1(Path objectPath) throws IOException {
-        byte[] compressed = Files.readAllBytes(objectPath);
-        byte[] fullBlob = zlibDecompress(compressed);
-        return sha1Hex(fullBlob);
-    }
-
-    public static String buildSha1(Path base, Path file) throws IOException {
-        String sha = buildSha1(file);
-        // Optional check:
-        Path rel = base.relativize(file);
-        String expected = rel.getName(0).toString() + rel.getName(1).toString();
-        if (!sha.equals(expected)) {
-            System.err.printf("[ObjectUtils] checksum mismatch: path suggests %s, computed %s%n", expected, sha);
-        }
-        return sha;
-    }
-    */
     /**
      * Compute SHA-1 digest and return lowercase hex string.
      */
