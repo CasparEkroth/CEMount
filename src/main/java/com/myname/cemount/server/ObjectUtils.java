@@ -2,10 +2,7 @@ package com.myname.cemount.server;
 
 import com.myname.cemount.core.Pair;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -177,42 +174,6 @@ public class ObjectUtils {
         return Files.readAllBytes(objPath);
     }
 
-    public static List<String> listMissing(Path cemDir,
-                                           String haveSha,
-                                           String remoteSha) throws IOException {
-        Path objectsDir = cemDir.resolve(OBJECTS);
-        Set<String> haveSet;
-        try (Stream<Path> paths = Files.walk(objectsDir, 2)) {
-            haveSet = paths
-                    .filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .collect(Collectors.toSet());
-        }
-
-        Set<String> wantSet = new LinkedHashSet<>();
-        Deque<String> stack = new ArrayDeque<>();
-        stack.push(remoteSha);
-
-        while (!stack.isEmpty()) {
-            String sha = stack.pop();
-            if (!wantSet.add(sha)) continue;
-
-            byte[] raw  = loadObject(cemDir, sha);
-            byte[] data = zlibDecompress(raw);
-
-            int idx = 0; while (data[idx] != 0) idx++;
-            String body = new String(data, idx+1, data.length - (idx+1), UTF_8);
-
-            for (String line : body.split("\n")) {
-                if (line.startsWith("tree ") || line.startsWith("parent ")) {
-                    stack.push(line.substring(line.indexOf(' ')+1));
-                }
-            }
-        }
-        wantSet.removeAll(haveSet);
-
-        return new ArrayList<>(wantSet);
-    }
 
     public static void addToFile(Path filePath, String[] appends) throws IOException {
         List<String> lines = Files.readAllLines(filePath, UTF_8);
@@ -302,5 +263,12 @@ public class ObjectUtils {
         return line.toString(StandardCharsets.UTF_8.name());
     }
 
+    public static void createPath(Path path) throws IOException {
+        // Just make any missing parent directories of 'path'
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+    }
 }
 

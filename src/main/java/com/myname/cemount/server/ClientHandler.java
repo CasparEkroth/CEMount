@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.myname.cemount.server.ObjectUtils.readLine;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -80,17 +81,14 @@ public class ClientHandler implements Runnable {
     }
 
     private static void handelPull(BufferedReader textIn, BufferedWriter textOut, OutputStream binOut, Path bareRepo, String branch) throws IOException{
-        int conut = Integer.parseInt(textIn.readLine().trim());
-        for(int i = 0; i < conut; i++){
+        while(true){
             String sha = textIn.readLine();
+            if(sha.startsWith("OK")) break;
             byte[] raw = ObjectUtils.loadObject(bareRepo,sha);
-            textOut.write(raw.length + "\n");
-            textOut.flush();
+            binOut.write((raw.length + "\n").getBytes(UTF_8));
             binOut.write(raw);
             binOut.flush();
         }
-        textOut.write("END\n");
-        textOut.flush();
     }
 
     private static void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut,OutputStream binOut, Path bareRepo, String branch) throws IOException {

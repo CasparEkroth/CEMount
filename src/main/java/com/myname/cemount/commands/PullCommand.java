@@ -1,5 +1,6 @@
 package com.myname.cemount.commands;
 
+import com.myname.cemount.core.Pair;
 import com.myname.cemount.server.ObjectUtils;
 import com.myname.cemount.commands.FetchCommand;
 
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -48,76 +50,60 @@ public class PullCommand {
         String branch = ObjectUtils.getBranch(cemDir);
 
         Path fetchFile = cemDir.resolve(FETCH_FILE);
-        List<String> missing = Files.readAllLines(fetchFile, StandardCharsets.UTF_8);
-        missing.removeIf(s -> s.trim().isEmpty());
 
         try (Socket socket = new Socket(serverIP, Integer.parseInt(serverPort));
+             InputStream rawIn = socket.getInputStream();
+             BufferedInputStream bin = new BufferedInputStream(rawIn);
              BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
+
+
+            List<String> commitsSha = Files.readAllLines(fetchFile);
+            List<Pair> obj = new ArrayList<>();
+            String newHeadSha = new String();
+            long date = 0;
+            for(String sha : commitsSha){
+                long current = ObjectUtils.getTimeStamp(cemDir, sha);
+                if(current > date){
+                    newHeadSha = sha;
+                    date = current;
+                }
+                List<Pair> tmp = ObjectUtils.getShaFromCommit(cemDir,sha);
+                obj.addAll(tmp);
+            }
 
             out.write("PULL " + repoName + " " + branch + "\n");
             out.flush();
 
-            InputStream bin = socket.getInputStream();
-            out.write(missing.size() + "\n");
-            out.flush();
-
-            for (int i = 0; i < missing.size(); i++) {
-                String sha = missing.get(i);
-                out.write(sha + "\n");
+            for(Pair cObj : obj){
+                String shaO = cObj.getSha();
+                out.write(shaO + "\n");
                 out.flush();
-
-                String line = in.readLine();
-                if (line == null || line.equals("END")) break;
-                int len = Integer.parseInt(line.trim());
-
-                byte[] data = bin.readNBytes(len);
-                Path objPath = cemDir
-                        .resolve(OBJECTS)
-                        .resolve(sha.substring(0, 2))
-                        .resolve(sha.substring(2));
-
-                if (!Files.exists(objPath.getParent())) {
-                    Files.createDirectories(objPath.getParent());
+                Path objPath = cemDir.resolve(OBJECTS).resolve(shaO.substring(0,2)).resolve(shaO.substring(2));
+                Path parentPath = objPath.getParent();
+                if(!Files.exists(parentPath)){
+                    Files.createDirectories(parentPath);
                 }
-                Files.write(objPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-            }
-            bin.close();
-
-            Path updatePath = cemDir.resolve(UPDATE_FILE);
-            ObjectUtils.appendToFile(fetchFile, updatePath);
-            Files.deleteIfExists(fetchFile);
-            Files.createFile(fetchFile);
-
-            // === determine the new HEAD commit SHA ===
-            String newHeadSha = null;
-            for (String sha : missing) {
-                Path shaPath = cemDir
-                        .resolve(OBJECTS)
-                        .resolve(sha.substring(0, 2))
-                        .resolve(sha.substring(2));
-                byte[] compressed = Files.readAllBytes(shaPath);
-                byte[] fullBlob = ObjectUtils.zlibDecompress(compressed);
-
-                int idx = 0;
-                while (idx < fullBlob.length && fullBlob[idx] != 0) idx++;
-                String header = new String(fullBlob, 0, idx, StandardCharsets.UTF_8);
-                String[] hdr = header.split(" ");
-                if ("commit".equals(hdr[0])) {
-                    newHeadSha = sha;
-                    break;
+                Files.deleteIfExists(objPath);
+                Files.createFile(objPath);
+                int len = Integer.parseInt(ObjectUtils.readLine(bin).trim());
+                byte[] rawObj  = bin.readNBytes(len);
+                Files.write(objPath,rawObj,StandardOpenOption.WRITE);
+                // wright to file
+                Path repo = cemDir.getParent();
+                String rawName = cObj.getFileName();
+                Path filePath = Paths.get(rawName);
+                if (filePath.isAbsolute()) {
+                    filePath = filePath.subpath(0, filePath.getNameCount());
                 }
+                Path currentFile  = repoRoot.resolve(filePath);
+                ObjectUtils.createPath(currentFile);
+                String content = ObjectUtils.readObjectText(cemDir, shaO);
+                Files.writeString(currentFile,content,StandardCharsets.UTF_8);
             }
-            if (newHeadSha == null) {
-                System.err.println("fatal: no commit object found in fetched objects");
-                return;
-            }
-
-            // update the branch ref
+            out.write("OK \n");
+            out.flush();
             ObjectUtils.updateRef(cemDir, REFS_DIR_HEAD + "/" + branch, newHeadSha);
-
-            // overwrite working-tree files to match the new commit
-
 
         } catch (IOException e) {
             System.err.println("pull failed: " + e.getMessage());
