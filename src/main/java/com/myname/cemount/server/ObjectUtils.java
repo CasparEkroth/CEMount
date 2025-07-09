@@ -26,6 +26,8 @@ public class ObjectUtils {
     private static final String HEADS_DIR      = "heads";
     private static final String HEAD_FILE      = "HEAD";
     private static final String OBJECTS        = "objects";
+    private static final String ECHO_FILE      = "ECHO";
+
 
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));
@@ -170,6 +172,11 @@ public class ObjectUtils {
 
     }
 
+    public static byte[] loadCommit(Path cemDir, String sha) throws IOException {
+        Path objPath = cemDir.resolve(ECHO_FILE).resolve(sha.substring(0,2)).resolve(sha.substring(2));
+        return Files.readAllBytes(objPath);
+    }
+
     public static List<String> listMissing(Path cemDir,
                                            String haveSha,
                                            String remoteSha) throws IOException {
@@ -240,5 +247,11 @@ public class ObjectUtils {
         return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
     }
 
+    public static String readCommitText(Path cemDir, String sha) throws IOException {
+        byte[] full = zlibDecompress(loadCommit(cemDir, sha));
+        int i = 0;
+        while (i < full.length && full[i] != 0) i++;
+        return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
+    }
 }
 

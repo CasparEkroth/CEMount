@@ -60,8 +60,8 @@ public class Cem {
             case "t":
                 Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
                 Path cemDir = repoRoot.resolve(CEM_DIR);
-                String sha = "8b456f5f40aaedaecf828156382494dd53eff4ca";
-                String text =  ObjectUtils.readObjectText(cemDir,sha);
+                String sha = "a82492ddbf5ca717fc6aa40936467cdde6451dd0";
+                String text =  ObjectUtils.readCommitText(cemDir,sha);
 
                 System.out.println(text);
 
