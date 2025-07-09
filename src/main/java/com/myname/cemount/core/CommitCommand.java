@@ -1,5 +1,7 @@
 package com.myname.cemount.core;
 
+import com.myname.cemount.server.ObjectUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -75,9 +77,14 @@ public class CommitCommand {
         }
 
         long nowEpoch = Instant.now().getEpochSecond();
+
         StringBuilder body = new StringBuilder();
         body.append("timestamp: ").append(nowEpoch).append('\n');
         body.append("message:   ").append(commitMessage).append('\n');
+        Path refPath = refsHeads.resolve(ObjectUtils.getBranch(cemDir));
+        if(Files.exists(refPath)){
+            body.append("parent: ").append(Files.readString(refPath)).append('\n');
+        }
         body.append('\n');
         for (Staged s : staged) {
             body.append(s.sha).append(' ').append(s.path).append('\n');

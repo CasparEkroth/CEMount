@@ -1,14 +1,12 @@
 package com.myname.cemount.server;
 
+import com.myname.cemount.core.Pair;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -236,7 +234,7 @@ public class ObjectUtils {
         Path refPath = cemDir.resolve(ref);
         Files.deleteIfExists(refPath);
         Files.createFile(refPath);
-        Files.write(refPath,(newHeadSha + "\n").getBytes(StandardCharsets.UTF_8),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+        Files.write(refPath,(newHeadSha + "\n").getBytes(UTF_8),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
     }
 
     public static String readObjectText(Path cemDir, String sha) throws IOException {
@@ -244,14 +242,55 @@ public class ObjectUtils {
         // skip header (up to the first 0 byte)
         int i = 0;
         while (i < full.length && full[i] != 0) i++;
-        return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
+        return new String(full, i+1, full.length - i - 1, UTF_8);
     }
 
     public static String readCommitText(Path cemDir, String sha) throws IOException {
         byte[] full = zlibDecompress(loadCommit(cemDir, sha));
         int i = 0;
         while (i < full.length && full[i] != 0) i++;
-        return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
+        return new String(full, i+1, full.length - i - 1, UTF_8);
     }
+
+    public static long getTimeStamp(Path cemDir, String sha) throws IOException {
+        String commit = readCommitText(cemDir, sha);
+        String[] lines = commit.split("\n");
+        for (String line : lines){
+            if(line.startsWith("timestamp:")){
+                String[] parts = line.split(" ");
+                return Long.parseLong(parts[parts.length - 1]);
+            }
+        }
+        return 0;
+    }
+
+    public static List<Pair> getShaFromCommit(Path cemDir, String sha) throws IOException {
+        String commit = readCommitText(cemDir, sha);
+        String[] lines = commit.split("\n");
+        List<Pair> pairs = new ArrayList<>();
+        for (int i = 2; i < lines.length; i++){
+            if(!lines[i].isEmpty() && !lines[i].startsWith("parent:")){
+                String[] parts = lines[i].split(" ");
+                if(parts.length != 2) continue;
+                pairs.add( new Pair(parts[0],parts[1]));
+            }
+        }
+        return pairs;
+    }
+
+    public static String getParent(Path cemDir, String commitSha) throws IOException {
+        String commit = readCommitText(cemDir, commitSha);
+        String[] lines = commit.split("\n");
+        for (int i = 2; i < lines.length; i++){
+            if(lines[i].startsWith("parent:")){
+                String[] parts = lines[i].split(" ");
+                if(parts.length != 2) continue;
+                return parts[1];
+            }
+        }
+        return "origin";
+    }
+
+
 }
 

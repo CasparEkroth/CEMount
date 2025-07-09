@@ -21,6 +21,7 @@ public class RepositoryManager {
     private final Path rootDir;
     private final String defaultBranch;
     private static final String CEM_DIR = ".cemount";
+    private static final String ECHO_DIR      = "ECHO";
     /**
      * @param configFile  existing config (can be null if you want only dynamic create)
      * @param rootDir     where to put newly created repos, e.g. "/Users/me/CEMDB"
@@ -99,12 +100,16 @@ public class RepositoryManager {
         Path objects = cemDir.resolve("objects");
         Path refs = cemDir.resolve("refs");
         Path heads = refs.resolve("heads");
+        Path branch = heads.resolve(defaultBranch);
         Path headFile = cemDir.resolve("HEAD");
-
+        Path echoDir = cemDir.resolve(ECHO_DIR);
         //System.out.println("Creating dirs: " + objects);
         Files.createDirectories(objects);
         //System.out.println("Creating dirs: " + heads);
         Files.createDirectories(heads);
+
+        Files.createFile(branch);
+        Files.createDirectories(echoDir);
         //System.out.println("Writing HEAD to: " + headFile);
         Files.writeString(headFile,
                 "ref: refs/heads/" + defaultBranch + "\n",

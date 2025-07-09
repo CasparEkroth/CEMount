@@ -1,11 +1,14 @@
 package com.myname.cemount.server;
 
+import com.myname.cemount.core.Pair;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,9 +17,13 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RepositoryManager repoManager;
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
     private static final String CEM_DIR    = ".cemount";
     private static final String REFS_DIR_HEAD       = "refs/heads";
     private static final String OBJECTS    = "objects";
+    private static final String ECHO_FILE      = "ECHO";
+
+
     public ClientHandler(Socket socket, RepositoryManager repoManager) {
         this.socket = socket;
         this.repoManager = repoManager;
@@ -112,37 +119,56 @@ public class ClientHandler implements Runnable {
                             BufferedWriter out,
                             BufferedInputStream bin) throws IOException {
 
+        //String clientSha = in.readLine().trim();
+        String clientSha = readLine(bin).trim();
+        String refSha = ObjectUtils.getRef(bareRepo,branch).trim();
+        if(clientSha.equals(refSha)){
+            out.write("OK \n");
+            out.flush();
+            return;
+        }else {
+            out.write(  refSha + "\n");
+            out.flush();
+        }
+
         String line = readLine(bin);
+
         if (line != null && line.startsWith("COMMITS ")) {
             int count = Integer.parseInt(line.split(" ")[1]);
             for (int i = 0; i < count; i++) {
-                System.out.println("[server] ◀ skip: " + readLine(bin));
+                //String sha = in.readLine().trim();
+                String sha = readLine(bin).trim();
+                Path newCommitPath = bareRepo.resolve(ECHO_FILE).resolve(sha.substring(0,2)).resolve(sha.substring(2));
+                Path parentDir = newCommitPath.getParent();
+                if(!Files.exists(parentDir)){
+                    Files.createDirectories(parentDir);
+                }
+                Files.deleteIfExists(newCommitPath);
+                Files.createFile(newCommitPath);
+                //int len = Integer.parseInt(in.readLine().trim());
+                int len = Integer.parseInt(readLine(bin).trim());
+                byte[] raw = bin.readNBytes(len);
+                Files.write(newCommitPath,raw, StandardOpenOption.WRITE);
+                // fix the obj for the files
+                System.out.println(bareRepo);
+                List<Pair> addObj = ObjectUtils.getShaFromCommit(bareRepo, sha);
+                for (int y  = 0; y < addObj.size();y++){
+                    String currentSha = readLine(bin).trim();
+                    Path objPath = bareRepo.resolve(OBJECTS).resolve(currentSha.substring(0,2)).resolve(currentSha.substring(2));
+                    if(!Files.exists(objPath.getParent())){
+                        Files.createDirectories(objPath.getParent());
+                    }
+                    Files.deleteIfExists(objPath);
+                    Files.createFile(objPath);
+                    int size = Integer.parseInt(readLine(bin).trim());
+                    byte[] rawObj = bin.readNBytes(size);
+                    Files.write(objPath,rawObj,StandardOpenOption.WRITE);
+                }
             }
         }
 
-        String header;
-        while ((header = readLine(bin)) != null && header.startsWith("OBJECT ")) {
-            String[] parts = header.split(" ", 3);
-            String sha = parts[1];
-            int len = Integer.parseInt(parts[2]);
-
-            byte[] rawCom = bin.readNBytes(len);
-            if (rawCom.length < len) {
-                throw new IOException("Unexpected EOF in object bytes");
-            }
-
-            Path objRoot = bareRepo.resolve(OBJECTS);
-           String realSha = ObjectUtils.storeObject(objRoot, rawCom);
-            System.out.printf("[server] stored %s at %s/%s\n",realSha, realSha.substring(0,2), realSha.substring(2));
-
-            int nl = bin.read();
-            if (nl != '\n') throw new IOException("Expected newline after object payload");
-        }
-
-        String update = (header != null && header.startsWith("UPDATE_REF "))
-                ? header
-                : readLine(bin);
-        if (update == null || !update.startsWith("UPDATE_REF ")) {
+        String update = (readLine(bin).trim());
+        if (!update.startsWith("UPDATE_REF ")) {
             throw new IOException("Expected UPDATE_REF, got: " + update);
         }
         String[] up = update.split(" ", 3);
