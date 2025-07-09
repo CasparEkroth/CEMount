@@ -9,9 +9,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.myname.cemount.server.ObjectUtils.readLine;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -21,7 +24,7 @@ public class ClientHandler implements Runnable {
     private static final String CEM_DIR    = ".cemount";
     private static final String REFS_DIR_HEAD       = "refs/heads";
     private static final String OBJECTS    = "objects";
-    private static final String ECHO_FILE      = "ECHO";
+    private static final String ECHO_DIR      = "ECHO";
 
 
     public ClientHandler(Socket socket, RepositoryManager repoManager) {
@@ -59,7 +62,7 @@ public class ClientHandler implements Runnable {
                         handlePush(bareRepo, branch, out, bin);
                         return;
                     case "FETCH":
-                        handleFetch(in, out ,bareRepo,branch);
+                        handleFetch(in, out ,binOut, bareRepo, branch);
                         break;
                     case "PULL":
                         handelPull(in, out, binOut, bareRepo, branch);
@@ -90,7 +93,7 @@ public class ClientHandler implements Runnable {
         textOut.flush();
     }
 
-    private static void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut, Path bareRepo, String branch) throws IOException {
+    private static void handleFetch(BufferedReader ctrlIn, BufferedWriter ctrlOut,OutputStream binOut, Path bareRepo, String branch) throws IOException {
         String remoteSha = ObjectUtils.getRef(bareRepo, branch);
 
         ctrlOut.write(remoteSha + "\n");
@@ -102,15 +105,27 @@ public class ClientHandler implements Runnable {
             System.out.println("no update needed");
             return;
         }
-        List<String> missing = ObjectUtils.listMissing(bareRepo, haveSha, remoteSha);
+        List<String> missing = new ArrayList<>();
+        String parent = remoteSha;
+        missing.add(parent);
+        while (true){
+            parent = ObjectUtils.getParent(bareRepo,parent);
+            if(parent.equals(haveSha)) break;
+            if(parent.equals("origin")) break;
+            missing.add(parent);
+        }
 
-        //System.out.println(missing);
         ctrlOut.write(missing.size() + "\n");
         ctrlOut.flush();
 
         for(int i = 0; i < missing.size(); i++){
             ctrlOut.write(missing.get(i) + "\n");
             ctrlOut.flush();
+            byte[] raw = ObjectUtils.loadCommit(bareRepo,missing.get(i));
+            ctrlOut.write(raw.length + "\n");
+            ctrlOut.flush();
+            binOut.write(raw);
+            binOut.flush();
         }
     }
 
@@ -119,7 +134,6 @@ public class ClientHandler implements Runnable {
                             BufferedWriter out,
                             BufferedInputStream bin) throws IOException {
 
-        //String clientSha = in.readLine().trim();
         String clientSha = readLine(bin).trim();
         String refSha = ObjectUtils.getRef(bareRepo,branch).trim();
         if(clientSha.equals(refSha)){
@@ -138,7 +152,7 @@ public class ClientHandler implements Runnable {
             for (int i = 0; i < count; i++) {
                 //String sha = in.readLine().trim();
                 String sha = readLine(bin).trim();
-                Path newCommitPath = bareRepo.resolve(ECHO_FILE).resolve(sha.substring(0,2)).resolve(sha.substring(2));
+                Path newCommitPath = bareRepo.resolve(ECHO_DIR).resolve(sha.substring(0,2)).resolve(sha.substring(2));
                 Path parentDir = newCommitPath.getParent();
                 if(!Files.exists(parentDir)){
                     Files.createDirectories(parentDir);
@@ -180,14 +194,7 @@ public class ClientHandler implements Runnable {
         out.flush();
     }
 
-    private static String readLine(BufferedInputStream bin) throws IOException {
-        ByteArrayOutputStream line = new ByteArrayOutputStream();
-        int b;
-        while ((b = bin.read()) != -1 && b != '\n') {
-            line.write(b);
-        }
-        return line.toString(StandardCharsets.UTF_8.name());
-    }
+
 
     private void handleInit(String repoName, String path,
                       BufferedWriter out) throws IOException {

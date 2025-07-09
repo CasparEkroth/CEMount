@@ -144,7 +144,7 @@ public class Cem {
             // Create directories
             Files.createDirectories(cemDir.resolve("objects"));
             Files.createDirectories(cemDir.resolve("refs/heads"));
-
+            Files.createFile(cemDir.resolve("refs/heads/master"));
             Files.createFile(cemDir.resolve("FETCH_HEAD"));
 
             // Write initial HEAD pointing to master

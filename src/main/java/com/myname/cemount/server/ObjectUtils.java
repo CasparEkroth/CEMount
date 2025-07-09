@@ -2,9 +2,11 @@ package com.myname.cemount.server;
 
 import com.myname.cemount.core.Pair;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -291,6 +293,14 @@ public class ObjectUtils {
         return "origin";
     }
 
+    public static String readLine(BufferedInputStream bin) throws IOException {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        int b;
+        while ((b = bin.read()) != -1 && b != '\n') {
+            line.write(b);
+        }
+        return line.toString(StandardCharsets.UTF_8.name());
+    }
 
 }
 
