@@ -59,6 +59,9 @@ public class Cem {
             case "pull":
                 PullCommand.execute(slice(args,1));
                 break;
+            case "clone":
+                CloneCommand(slice(args,1));
+                break;
             case "t":
                 Path repoRoot = Paths.get(".").toAbsolutePath().normalize();
                 Path cemDir = repoRoot.resolve(CEM_DIR);
@@ -165,5 +168,19 @@ public class Cem {
         String[] result = new String[arr.length - start];
         System.arraycopy(arr, start, result, 0, result.length);
         return result;
+    }
+
+    private static void CloneCommand(String[] args) throws IOException {
+        if(args.length != 2){
+            System.err.println("Usage: cem clone <remoteName> <remote/repoName>");
+            return;
+        }
+        String remoteName = args[0];
+        String remoteUrl = args[1];
+        runInit();
+        String[] remoteArgs = {"add",remoteName,remoteUrl};
+        RemoteCommand.execute(remoteArgs);
+        String[] pullArgs = {remoteName};
+        PullCommand.execute(pullArgs);
     }
 }
