@@ -1,20 +1,18 @@
 package com.myname.cemount.server;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Array;
+import com.myname.cemount.core.Pair;
+
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
 import java.util.zip.InflaterInputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -25,6 +23,8 @@ public class ObjectUtils {
     private static final String HEADS_DIR      = "heads";
     private static final String HEAD_FILE      = "HEAD";
     private static final String OBJECTS        = "objects";
+    private static final String ECHO_FILE      = "ECHO";
+
 
     public static byte[] zlibDecompress(byte[] compressed) throws IOException {
         try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(compressed));
@@ -39,39 +39,23 @@ public class ObjectUtils {
             return out.toByteArray();
         }
     }
-    /*
-    public static String extractFileContents(byte[] compressed) throws IOException {
-        byte[] data = zlibDecompress(compressed);
-        int idx = 0; // header
-        while (idx < data.length && data[idx] != 0){
-            idx++;
+
+    public static byte[] zlibCompress(byte[] input) throws IOException {
+        Deflater def = new Deflater();
+        def.setInput(input);
+        def.finish();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            while (!def.finished()) {
+                int count = def.deflate(buf);
+                baos.write(buf, 0, count);
+            }
+            return baos.toByteArray();
+        } finally {
+            def.end();
         }
-        return new String(data,idx +1, data.length - idx - 1, UTF_8);
-    }
-    public static void printObject(Path objPath) throws IOException {
-        byte[] compressed = Files.readAllBytes(objPath);
-        String contents = extractFileContents(compressed);
-        System.out.println("----- file contents -----");
-        System.out.println(contents);
     }
 
-    public static String buildSha1(Path objectPath) throws IOException {
-        byte[] compressed = Files.readAllBytes(objectPath);
-        byte[] fullBlob = zlibDecompress(compressed);
-        return sha1Hex(fullBlob);
-    }
-
-    public static String buildSha1(Path base, Path file) throws IOException {
-        String sha = buildSha1(file);
-        // Optional check:
-        Path rel = base.relativize(file);
-        String expected = rel.getName(0).toString() + rel.getName(1).toString();
-        if (!sha.equals(expected)) {
-            System.err.printf("[ObjectUtils] checksum mismatch: path suggests %s, computed %s%n", expected, sha);
-        }
-        return sha;
-    }
-    */
     /**
      * Compute SHA-1 digest and return lowercase hex string.
      */
@@ -185,42 +169,11 @@ public class ObjectUtils {
 
     }
 
-    public static List<String> listMissing(Path cemDir,
-                                           String haveSha,
-                                           String remoteSha) throws IOException {
-        Path objectsDir = cemDir.resolve(OBJECTS);
-        Set<String> haveSet;
-        try (Stream<Path> paths = Files.walk(objectsDir, 2)) {
-            haveSet = paths
-                    .filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .collect(Collectors.toSet());
-        }
-
-        Set<String> wantSet = new LinkedHashSet<>();
-        Deque<String> stack = new ArrayDeque<>();
-        stack.push(remoteSha);
-
-        while (!stack.isEmpty()) {
-            String sha = stack.pop();
-            if (!wantSet.add(sha)) continue;
-
-            byte[] raw  = loadObject(cemDir, sha);
-            byte[] data = zlibDecompress(raw);
-
-            int idx = 0; while (data[idx] != 0) idx++;
-            String body = new String(data, idx+1, data.length - (idx+1), UTF_8);
-
-            for (String line : body.split("\n")) {
-                if (line.startsWith("tree ") || line.startsWith("parent ")) {
-                    stack.push(line.substring(line.indexOf(' ')+1));
-                }
-            }
-        }
-        wantSet.removeAll(haveSet);
-
-        return new ArrayList<>(wantSet);
+    public static byte[] loadCommit(Path cemDir, String sha) throws IOException {
+        Path objPath = cemDir.resolve(ECHO_FILE).resolve(sha.substring(0,2)).resolve(sha.substring(2));
+        return Files.readAllBytes(objPath);
     }
+
 
     public static void addToFile(Path filePath, String[] appends) throws IOException {
         List<String> lines = Files.readAllLines(filePath, UTF_8);
@@ -244,7 +197,7 @@ public class ObjectUtils {
         Path refPath = cemDir.resolve(ref);
         Files.deleteIfExists(refPath);
         Files.createFile(refPath);
-        Files.write(refPath,(newHeadSha + "\n").getBytes(StandardCharsets.UTF_8),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+        Files.write(refPath,(newHeadSha + "\n").getBytes(UTF_8),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
     }
 
     public static String readObjectText(Path cemDir, String sha) throws IOException {
@@ -252,8 +205,70 @@ public class ObjectUtils {
         // skip header (up to the first 0 byte)
         int i = 0;
         while (i < full.length && full[i] != 0) i++;
-        return new String(full, i+1, full.length - i - 1, StandardCharsets.UTF_8);
+        return new String(full, i+1, full.length - i - 1, UTF_8);
     }
 
+    public static String readCommitText(Path cemDir, String sha) throws IOException {
+        byte[] full = zlibDecompress(loadCommit(cemDir, sha));
+        int i = 0;
+        while (i < full.length && full[i] != 0) i++;
+        return new String(full, i+1, full.length - i - 1, UTF_8);
+    }
+
+    public static long getTimeStamp(Path cemDir, String sha) throws IOException {
+        String commit = readCommitText(cemDir, sha);
+        String[] lines = commit.split("\n");
+        for (String line : lines){
+            if(line.startsWith("timestamp:")){
+                String[] parts = line.split(" ");
+                return Long.parseLong(parts[parts.length - 1]);
+            }
+        }
+        return 0;
+    }
+
+    public static List<Pair> getShaFromCommit(Path cemDir, String sha) throws IOException {
+        String commit = readCommitText(cemDir, sha);
+        String[] lines = commit.split("\n");
+        List<Pair> pairs = new ArrayList<>();
+        for (int i = 2; i < lines.length; i++){
+            if(!lines[i].isEmpty() && !lines[i].startsWith("parent:")){
+                String[] parts = lines[i].split(" ");
+                if(parts.length != 2) continue;
+                pairs.add( new Pair(parts[0],parts[1]));
+            }
+        }
+        return pairs;
+    }
+
+    public static String getParent(Path cemDir, String commitSha) throws IOException {
+        String commit = readCommitText(cemDir, commitSha);
+        String[] lines = commit.split("\n");
+        for (int i = 2; i < lines.length; i++){
+            if(lines[i].startsWith("parent:")){
+                String[] parts = lines[i].split(" ");
+                if(parts.length != 2) continue;
+                return parts[1];
+            }
+        }
+        return "origin";
+    }
+
+    public static String readLine(BufferedInputStream bin) throws IOException {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        int b;
+        while ((b = bin.read()) != -1 && b != '\n') {
+            line.write(b);
+        }
+        return line.toString(StandardCharsets.UTF_8.name());
+    }
+
+    public static void createPath(Path path) throws IOException {
+        // Just make any missing parent directories of 'path'
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+    }
 }
 

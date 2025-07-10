@@ -1,5 +1,7 @@
 package com.myname.cemount.core;
 
+import com.myname.cemount.server.ObjectUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +19,9 @@ public class CommitCommand {
     private static final String HEAD_FILE      = "HEAD";
     private static final String INDEX_TXT      = "index.txt";
 
-    public static void execute(String[] args) {
+    private static final String ECHO_FILE      = "ECHO";
+
+    public static void execute(String[] args) throws IOException {
         // Require exactly: cem commit -m "some message"
         if (args.length < 2 || !args[0].equals("-m")) {
             System.err.println("Usage: cem commit -m \"commit message\"");
@@ -31,6 +35,12 @@ public class CommitCommand {
         Path refsHeads = cemDir.resolve(REFS_DIR).resolve(HEADS_DIR);
         Path headFile  = cemDir.resolve(HEAD_FILE);
         Path indexTxt  = cemDir.resolve(INDEX_TXT);
+
+        Path echoDir   = cemDir.resolve(ECHO_FILE);
+
+        if(Files.notExists(echoDir)){
+            Files.createDirectories(echoDir);
+        }
 
         if (Files.notExists(headFile)) {
             try {
@@ -67,9 +77,14 @@ public class CommitCommand {
         }
 
         long nowEpoch = Instant.now().getEpochSecond();
+
         StringBuilder body = new StringBuilder();
         body.append("timestamp: ").append(nowEpoch).append('\n');
         body.append("message:   ").append(commitMessage).append('\n');
+        Path refPath = refsHeads.resolve(ObjectUtils.getBranch(cemDir));
+        if(Files.exists(refPath)){
+            body.append("parent: ").append(Files.readString(refPath)).append('\n');
+        }
         body.append('\n');
         for (Staged s : staged) {
             body.append(s.sha).append(' ').append(s.path).append('\n');
@@ -85,7 +100,7 @@ public class CommitCommand {
         String commitSha = sha1Hex(store);
         String dirName   = commitSha.substring(0, 2);
         String fileName  = commitSha.substring(2);
-        Path commitDir   = objects.resolve(dirName);
+        Path commitDir   = echoDir.resolve(dirName);
         Path commitFile  = commitDir.resolve(fileName);
 
         //Write it zlib‐compressed under .cemount/objects/xx/yyyy...
