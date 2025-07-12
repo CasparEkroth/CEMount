@@ -12,6 +12,7 @@
 
   <build>
     <plugins>
+      <!-- 1) Produce an executable JAR -->
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.3.0</version>
@@ -22,9 +23,45 @@
             </manifest>
           </archive>
         </configuration>
-      </plugin><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><configuration><source>8</source><target>8</target></configuration></plugin>
+      </plugin>
+
+      <!-- 2) Set the Java source/target -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>11</source>
+          <target>11</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jlink-plugin</artifactId>
+        <version>3.2.0</version>
+
+        <configuration>
+          <!-- launcher you already have -->
+          <launcher>cem=com.myname.cemount/com.myname.cemount.Cem</launcher>
+          <!-- this makes the zip become cemount-0.1.0-SNAPSHOT-runtime.zip -->
+          <classifier>runtime</classifier>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>create-runtime</id>
+            <goals>
+              <goal>jlink</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
+
+
 
 
   <properties>

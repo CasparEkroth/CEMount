@@ -1,8 +1,0 @@
-
-[remote "bigThing"]
-    url = http://IDK.com
-    fetch = +refs/heads/*:refs/remotes/bigThing/*
-
-[remote "usingIP"]
-    url = tcp://127.0.0.1:8080
-    fetch = +refs/heads/*:refs/remotes/usingIP/*
