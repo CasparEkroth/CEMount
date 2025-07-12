@@ -38,7 +38,7 @@ Choose one of the following methods to install CEMount on your system:
 
 Install CEMount globally with a one-liner (fetches the latest runtime ZIP and installs the cem launcher):
 ```bash
-curl -sSL https://raw.githubusercontent.com/<your-username>/CEMount/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/CasparEkroth/CEMount/main/scripts/install.sh | bash
 `````
 This script will:
 
@@ -50,7 +50,7 @@ This script will:
 ## Manual Installation
 ```bash
 # Clone the repo
-git clone https://github.com/<your-username>/cemount.git
+git clone https://github.com/CasparEkroth/cemount.git
 cd cemount
 
 # Build the project
