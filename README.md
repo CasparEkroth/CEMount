@@ -32,40 +32,45 @@ CEMount is inspired by Git’s architecture and enables you to initialize reposi
 - **Network Connectivity** for client-server operations  
 
 ## Installation
+Choose one of the following methods to install CEMount on your system:
 
-Install CEMount locally (no root privileges needed) using the provided script:
+## Automated (recommended)
 
+Install CEMount globally with a one-liner (fetches the latest runtime ZIP and installs the cem launcher):
 ```bash
-# Clone the repository
+curl -sSL https://raw.githubusercontent.com/<your-username>/CEMount/main/scripts/install.sh | bash
+`````
+This script will:
+
+- Download the runtime ZIP from GitHub Releases  
+- Unpack it into `~/.local/lib/cemount`  
+- Symlink the `cem` launcher into `~/.local/bin`  
+- Ensure `~/.local/bin` is in your `PATH`
+
+## Manual Installation
+```bash
+# Clone the repo
 git clone https://github.com/<your-username>/cemount.git
 cd cemount
 
-# Run the installer (builds the JAR and installs the `cem` wrapper)
-./scripts/install.sh
-`````
-## Manual Installation
-
-If you prefer to install CEMount without the installer script, follow these steps:
-
-```bash
-# 1. Build the project artifacts
+# Build the project
 mvn clean package
 
-# 2. Create install directories
+# Create install directories
 mkdir -p "$HOME/.local/lib/cemount" "$HOME/.local/bin"
 
-# 3. Copy the JAR to the library folder
+# Copy the JAR
 cp target/cemount-0.1.0-SNAPSHOT.jar ~/.local/lib/cemount/cemount.jar
 
-# 4. Create the `cem` wrapper script
+# Create wrapper script
 cat > ~/.local/bin/cem << 'EOF'
 #!/usr/bin/env bash
 exec java -jar "$HOME/.local/lib/cemount/cemount.jar" "$@"
 EOF
-
-# 5. Make it executable
 chmod +x ~/.local/bin/cem
-`````
+``````
+
+
 
 ## Quick Start
 ```bash
