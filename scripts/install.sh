@@ -9,18 +9,25 @@ URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
 INSTALL_DIR="$HOME/.local/lib/cemount"
 BIN_DIR="$HOME/.local/bin"
 
-mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+# 1) Fetch and unpack the runtime image
+mkdir -p "$INSTALL_DIR"
 echo "Downloading $URL…"
 curl -sSL "$URL" -o "/tmp/${ASSET}"
 
 echo "Extracting into $INSTALL_DIR…"
 unzip -qo "/tmp/${ASSET}" -d "$INSTALL_DIR"
 
-echo "Linking cem launcher to $BIN_DIR"
-ln -sf "$INSTALL_DIR/bin/cem" "$BIN_DIR/cem"
-chmod +x "$INSTALL_DIR/bin/cem"
+# 2) Create the single 'cem' wrapper in ~/.local/bin
+mkdir -p "$BIN_DIR"
+cat > "$BIN_DIR/cem" << 'EOF'
+#!/usr/bin/env bash
+INSTALL_DIR="$HOME/.local/lib/cemount"
+exec "$INSTALL_DIR/bin/java" \
+  --module com.myname.cemount/com.myname.cemount.Cem "$@"
+EOF
+chmod +x "$BIN_DIR/cem"
 
-# Ensure ~/.local/bin is in PATH
+# 3) Ensure ~/.local/bin is in PATH
 SHELL_RC=""
 if [[ -n "${ZSH_VERSION-}" ]]; then
   SHELL_RC="$HOME/.zshrc"
@@ -33,4 +40,4 @@ if [[ -n "$SHELL_RC" ]] && ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$SH
   echo "Added ~/.local/bin to PATH in $SHELL_RC"
 fi
 
-echo "Installation complete! Restart your shell or run 'source $SHELL_RC', then try 'cem --help'."
+echo "Installation complete! Restart your shell or run 'source $SHELL_RC', then try 'cem -h'."
