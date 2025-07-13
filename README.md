@@ -28,13 +28,12 @@ CEMount is inspired by Git’s architecture and enables you to initialize reposi
 
 - **Java 11+** (tested on Java 17)  
 - **Maven 3.6+**  
-- **Unix-like OS** (Linux, macOS)  
 - **Network Connectivity** for client-server operations  
 
 ## Installation
 Choose one of the following methods to install CEMount on your system:
 
-## Automated (recommended)
+## Automated (recommended for macOS only)
 
 Install CEMount globally with a one-liner (fetches the latest runtime ZIP and installs the cem launcher):
 ```bash
@@ -47,30 +46,77 @@ This script will:
 - Symlink the `cem` launcher into `~/.local/bin`  
 - Ensure `~/.local/bin` is in your `PATH`
 
-## Manual Installation
+### Manual Installation
+
+You can build and install CEMount from source on both **Linux/macOS** and **Windows**.
+
+#### Linux & macOS
+
+**Prerequisites**  
+- Java 11+ JDK  
+- Maven 3.6+  
+- Git  
+
 ```bash
-# Clone the repo
-git clone https://github.com/CasparEkroth/cemount.git
+# 1. Clone the repository
+git clone https://github.com/<your-username>/cemount.git
 cd cemount
 
-# Build the project
+# 2. Build the project (produces cemount-0.1.0-SNAPSHOT.jar)
 mvn clean package
 
-# Create install directories
+# 3. Install
 mkdir -p "$HOME/.local/lib/cemount" "$HOME/.local/bin"
+cp target/cemount-0.1.0-SNAPSHOT.jar "$HOME/.local/lib/cemount/cemount.jar"
 
-# Copy the JAR
-cp target/cemount-0.1.0-SNAPSHOT.jar ~/.local/lib/cemount/cemount.jar
-
-# Create wrapper script
-cat > ~/.local/bin/cem << 'EOF'
+cat > "$HOME/.local/bin/cem" << 'EOF'
 #!/usr/bin/env bash
 exec java -jar "$HOME/.local/lib/cemount/cemount.jar" "$@"
 EOF
-chmod +x ~/.local/bin/cem
+
+chmod +x "$HOME/.local/bin/cem"
 ``````
+#### Windows
 
+**Prerequisites**  
+- Java 11+ JDK  
+- Maven 3.6+  
+- Git  
+- PowerShell (Windows PowerShell or PowerShell Core)
 
+```bat
+
+# 1. Clone the repository
+git clone https://github.com/<your-username>/cemount.git
+cd cemount
+
+# 2. Build the project (produces cemount-0.1.0-SNAPSHOT.jar)
+mvn clean package
+
+# 3. Set up install directories
+$installDir = "$HOME\.local\lib\cemount"
+$binDir     = "$HOME\.local\bin"
+New-Item -ItemType Directory -Force -Path $installDir, $binDir | Out-Null
+
+# 4. Copy the JAR
+Copy-Item -Path "target\cemount-0.1.0-SNAPSHOT.jar" -Destination "$installDir\cemount.jar"
+
+# 5. Create the Windows wrapper
+$bat = @"
+@echo off
+rem ---- cem.bat wrapper ----
+set INSTALL_DIR=%USERPROFILE%\.local\lib\cemount
+java -jar "%INSTALL_DIR%\cemount.jar" %*
+"@
+$bat | Out-File -Encoding ASCII "$binDir\cem.bat" -Force
+
+# 6. (Optional) Add ~/.local/bin to your user PATH
+[Environment]::SetEnvironmentVariable(
+  'PATH',
+  [Environment]::GetEnvironmentVariable('PATH','User') + ";$binDir",
+  'User'
+)
+``````
 
 ## Quick Start
 ```bash
